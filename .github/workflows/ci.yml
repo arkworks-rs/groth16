@@ -27,7 +27,7 @@ jobs:
       uses: actions-rs/cargo@v1
       with:
         command: fmt
-        args: --all -- --check
+        args: -- --check
 
   test:
     name: Test
@@ -62,32 +62,27 @@ jobs:
         uses: actions-rs/cargo@v1
         with:
             command: check
-            args: --examples --all
+            args: --examples
 
       - name: Check examples with all features on stable
         uses: actions-rs/cargo@v1
         with:
             command: check
-            args: --examples --all-features --all
+            args: --examples --all-features
         if: matrix.rust == 'stable'
 
       - name: Check benchmarks on nightly
         uses: actions-rs/cargo@v1
         with:
             command: check
-            args: --all-features --examples --all --benches
+            args: --all-features --examples --benches
         if: matrix.rust == 'nightly'
 
       - name: Test
         uses: actions-rs/cargo@v1
         with:
             command: test
-            args: "--all \
-                   --all-features \
-                   --exclude cp-benches \
-                   --exclude algebra-benches \
-                   --exclude ff-fft-benches \
-                   -- --skip dpc --skip integration_test"
+            args: --all-features 
 
   check_no_std:
     name: Check no_std
@@ -118,58 +113,8 @@ jobs:
             target
           key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
 
-      - name: algebra-core
-        run: |
-          cd algebra-core
-          cargo build -p algebra-core --no-default-features --target thumbv6m-none-eabi
-          cargo check --examples -p algebra-core --no-default-features --target thumbv6m-none-eabi
-          cd ..
-
-      - name: algebra
-        run: |
-          cd algebra
-          cargo build -p algebra --no-default-features --target thumbv6m-none-eabi
-          cargo check --examples -p algebra --no-default-features --target thumbv6m-none-eabi
-          cd ..
-
-      - name: r1cs-core
-        run: |
-          cd r1cs-core
-          cargo build -p r1cs-core --no-default-features --target thumbv6m-none-eabi
-          cargo check --examples -p r1cs-core --no-default-features --target thumbv6m-none-eabi
-          cd ..
-
-      - name: r1cs-std
-        run: |
-          cd r1cs-std
-          cargo build -p r1cs-std --no-default-features --target aarch64-unknown-none
-          cargo check --examples -p r1cs-std --no-default-features --target aarch64-unknown-none
-          cd ..
-
-      - name: ff-fft
-        run: |
-          cd ff-fft
-          cargo build -p ff-fft --no-default-features --target thumbv6m-none-eabi
-          cargo check --examples -p ff-fft --no-default-features --target thumbv6m-none-eabi
-          cd ..
-
       - name: groth16
         run: |
-          cd groth16
-          cargo build -p groth16 --no-default-features --target thumbv6m-none-eabi
-          cargo check --examples -p groth16 --no-default-features --target thumbv6m-none-eabi
-          cd ..
-
-      - name: gm17
-        run: |
-          cd gm17
-          cargo build -p gm17 --no-default-features --target thumbv6m-none-eabi
-          cargo check --examples -p gm17 --no-default-features --target thumbv6m-none-eabi
-          cd ..
-
-      - name: crypto-primitives
-        run: |
-          cd crypto-primitives
-          cargo build -p crypto-primitives --no-default-features --target aarch64-unknown-none
-          cargo check --examples -p crypto-primitives --no-default-features --target aarch64-unknown-none
+          cargo build --no-default-features --target aarch64-unknown-none
+          cargo check --examples --no-default-features --target aarch64-unknown-none
           cd ..
