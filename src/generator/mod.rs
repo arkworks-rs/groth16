@@ -1,7 +1,7 @@
 use crate::Parameters;
-use algebra_core::PairingEngine;
-use ff_fft::GeneralEvaluationDomain;
-use r1cs_core::{ConstraintSynthesizer, SynthesisError};
+use ark_ec::PairingEngine;
+use ark_poly::GeneralEvaluationDomain;
+use ark_relations::r1cs::{ConstraintSynthesizer, SynthesisError};
 use rand::Rng;
 
 pub mod generic;

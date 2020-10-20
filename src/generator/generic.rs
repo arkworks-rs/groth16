@@ -1,9 +1,9 @@
-use algebra_core::{
-    msm::FixedBaseMSM, Field, PairingEngine, PrimeField, ProjectiveCurve, UniformRand, Zero,
-};
-use ff_fft::{cfg_into_iter, cfg_iter, EvaluationDomain};
+use ark_ec::{msm::FixedBaseMSM, PairingEngine, ProjectiveCurve};
+use ark_ff::{Field, PrimeField, UniformRand, Zero};
+use ark_poly::EvaluationDomain;
+use ark_std::{cfg_into_iter, cfg_iter};
 
-use r1cs_core::{ConstraintSynthesizer, ConstraintSystem, SynthesisError};
+use ark_relations::r1cs::{ConstraintSynthesizer, ConstraintSystem, SynthesisError, SynthesisMode};
 use rand::Rng;
 
 #[cfg(feature = "parallel")]
@@ -48,7 +48,7 @@ where
 {
     let setup_time = start_timer!(|| "Groth16::Generator");
     let cs = ConstraintSystem::new_ref();
-    cs.set_mode(r1cs_core::SynthesisMode::Setup);
+    cs.set_mode(SynthesisMode::Setup);
 
     // Synthesize the circuit.
     let synthesis_time = start_timer!(|| "Constraint synthesis");

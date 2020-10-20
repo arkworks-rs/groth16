@@ -1,4 +1,5 @@
-use algebra_core::{AffineCurve, PairingEngine, PrimeField, ProjectiveCurve};
+use ark_ec::{AffineCurve, PairingEngine, ProjectiveCurve};
+use ark_ff::PrimeField;
 
 use super::{PreparedVerifyingKey, Proof, VerifyingKey};
 
