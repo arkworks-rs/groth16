@@ -32,17 +32,20 @@ use rand::Rng;
 use std::time::{Duration, Instant};
 
 // Bring in some tools for using pairing-friendly curves
-// We're going to use the BLS12-381 pairing-friendly elliptic curve.
-use algebra::bls12_381::{Bls12_381, Fr};
-use algebra_core::{test_rng, Field};
+// We're going to use the BLS12-377 pairing-friendly elliptic curve.
+use ark_bls12_377::{Bls12_377, Fr};
+use ark_ff::{test_rng, Field};
 
 // We'll use these interfaces to construct our circuit.
-use r1cs_core::{lc, ConstraintSynthesizer, ConstraintSystemRef, SynthesisError, Variable};
+use ark_relations::{
+    lc, ns,
+    r1cs::{ConstraintSynthesizer, ConstraintSystemRef, SynthesisError, Variable},
+};
 
 const MIMC_ROUNDS: usize = 322;
 
 /// This is an implementation of MiMC, specifically a
-/// variant named `LongsightF322p3` for BLS12-381.
+/// variant named `LongsightF322p3` for BLS12-377.
 /// See http://eprint.iacr.org/2016/492 for more
 /// information about this construction.
 ///
@@ -98,7 +101,7 @@ impl<'a, F: Field> ConstraintSynthesizer<F> for MiMCDemo<'a, F> {
 
         for i in 0..MIMC_ROUNDS {
             // xL, xR := xR + (xL + Ci)^3, xL
-            let ns = r1cs_core::ns!(cs, "round");
+            let ns = ns!(cs, "round");
             let cs = ns.cs();
 
             // tmp = (xL + Ci)^2
@@ -154,9 +157,9 @@ impl<'a, F: Field> ConstraintSynthesizer<F> for MiMCDemo<'a, F> {
 }
 
 #[test]
-fn test_mimc_groth_16() {
-    // We're going to use the Groth16 proving system.
-    use groth16::{
+fn test_mimc_gm_17() {
+    // We're going to use the Groth-Maller17 proving system.
+    use ark_groth16::{
         create_random_proof, generate_random_parameters, prepare_verifying_key, verify_proof,
     };
 
@@ -177,7 +180,7 @@ fn test_mimc_groth_16() {
             constants: &constants,
         };
 
-        generate_random_parameters::<Bls12_381, _, _>(c, rng).unwrap()
+        generate_random_parameters::<Bls12_377, _, _>(c, rng).unwrap()
     };
 
     // Prepare the verification key (for proof verification)

@@ -117,4 +117,3 @@ jobs:
         run: |
           cargo build --no-default-features --target aarch64-unknown-none
           cargo check --examples --no-default-features --target aarch64-unknown-none
-          cd ..

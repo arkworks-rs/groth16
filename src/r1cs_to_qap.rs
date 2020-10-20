@@ -1,9 +1,11 @@
-use algebra_core::{One, PairingEngine, Zero};
-use ff_fft::{cfg_iter, cfg_iter_mut, EvaluationDomain};
+use ark_ec::PairingEngine;
+use ark_ff::{One, Zero};
+use ark_poly::EvaluationDomain;
+use ark_std::{cfg_iter, cfg_iter_mut, vec};
 
 use crate::Vec;
+use ark_relations::r1cs::{ConstraintSystemRef, SynthesisError};
 use core::ops::{AddAssign, Deref};
-use r1cs_core::{ConstraintSystemRef, SynthesisError};
 
 #[cfg(feature = "parallel")]
 use rayon::prelude::*;

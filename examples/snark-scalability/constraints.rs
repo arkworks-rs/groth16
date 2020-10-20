@@ -1,6 +1,9 @@
-use algebra::Field;
-use r1cs_core::{
-    lc, ConstraintSynthesizer, ConstraintSystemRef, LinearCombination, SynthesisError, Variable,
+use ark_ff::Field;
+use ark_relations::{
+    lc,
+    r1cs::{
+        ConstraintSynthesizer, ConstraintSystemRef, LinearCombination, SynthesisError, Variable,
+    },
 };
 use std::marker::PhantomData;
 

@@ -28,7 +28,7 @@
 use csv;
 
 // For randomness (during paramgen and proof generation)
-use algebra_core::{test_rng, One};
+use ark_ff::{test_rng, One};
 
 // For benchmarking
 use std::{
@@ -38,10 +38,10 @@ use std::{
 
 // Bring in some tools for using pairing-friendly curves
 // We're going to use the BLS12-377 pairing-friendly elliptic curve.
-use algebra::bls12_377::{Bls12_377, Fr};
+use ark_bls12_377::{Bls12_377, Fr};
 
 // We're going to use the Groth 16 proving system.
-use groth16::{
+use ark_groth16::{
     create_random_proof, generate_random_parameters, prepare_verifying_key, verify_proof,
 };
 
