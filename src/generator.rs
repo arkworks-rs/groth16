@@ -1,22 +1,20 @@
 use crate::{r1cs_to_qap::R1CStoQAP, ProvingKey, Vec, VerifyingKey};
-use ark_ff::{Field, PrimeField, UniformRand, Zero};
 use ark_ec::{msm::FixedBaseMSM, PairingEngine, ProjectiveCurve};
+use ark_ff::{Field, PrimeField, UniformRand, Zero};
 use ark_poly::{EvaluationDomain, GeneralEvaluationDomain};
+use ark_relations::r1cs::{
+    ConstraintSynthesizer, ConstraintSystem, Result as R1CSResult, SynthesisError, SynthesisMode,
+};
 use ark_std::{cfg_into_iter, cfg_iter};
-use ark_relations::r1cs::{ConstraintSynthesizer, ConstraintSystem, SynthesisError, SynthesisMode};
 use rand::Rng;
 
 #[cfg(feature = "parallel")]
 use rayon::prelude::*;
 
-
 /// Generates a random common reference string for
 /// a circuit.
 #[inline]
-pub fn generate_random_parameters<E, C, R>(
-    circuit: C,
-    rng: &mut R,
-) -> Result<ProvingKey<E>, SynthesisError>
+pub fn generate_random_parameters<E, C, R>(circuit: C, rng: &mut R) -> R1CSResult<ProvingKey<E>>
 where
     E: PairingEngine,
     C: ConstraintSynthesizer<E::Fr>,
@@ -39,7 +37,7 @@ pub fn generate_parameters<E, C, R>(
     gamma: E::Fr,
     delta: E::Fr,
     rng: &mut R,
-) -> Result<ProvingKey<E>, SynthesisError>
+) -> R1CSResult<ProvingKey<E>>
 where
     E: PairingEngine,
     C: ConstraintSynthesizer<E::Fr>,
@@ -163,8 +161,12 @@ where
 
     // Compute the L-query
     let l_time = start_timer!(|| "Calculate L");
-    let l_query =
-        FixedBaseMSM::multi_scalar_mul::<E::G1Projective>(scalar_bits, g1_window, &g1_table, &l[cs.num_instance_variables()..]);
+    let l_query = FixedBaseMSM::multi_scalar_mul::<E::G1Projective>(
+        scalar_bits,
+        g1_window,
+        &g1_table,
+        &l[cs.num_instance_variables()..],
+    );
     end_timer!(l_time);
 
     end_timer!(proving_key_time);

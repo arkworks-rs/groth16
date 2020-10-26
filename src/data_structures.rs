@@ -6,7 +6,6 @@ use ark_std::{
     vec::Vec,
 };
 
-
 /// A proof in the Groth16 SNARK.
 #[derive(Clone, Debug, PartialEq, CanonicalSerialize, CanonicalDeserialize)]
 pub struct Proof<E: PairingEngine> {

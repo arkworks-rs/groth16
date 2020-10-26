@@ -1,9 +1,9 @@
-use crate::{r1cs_to_qap::R1CStoQAP, ProvingKey, Proof};
-use ark_ff::{PrimeField, UniformRand, Zero};
+use crate::{r1cs_to_qap::R1CStoQAP, Proof, ProvingKey};
 use ark_ec::{msm::VariableBaseMSM, AffineCurve, PairingEngine, ProjectiveCurve};
+use ark_ff::{PrimeField, UniformRand, Zero};
 use ark_poly::GeneralEvaluationDomain;
+use ark_relations::r1cs::{ConstraintSynthesizer, ConstraintSystem, Result as R1CSResult};
 use ark_std::{cfg_into_iter, cfg_iter, vec::Vec};
-use ark_relations::r1cs::{ConstraintSynthesizer, ConstraintSystem, SynthesisError};
 use rand::Rng;
 
 #[cfg(feature = "parallel")]
@@ -16,7 +16,7 @@ pub fn create_random_proof<E, C, R>(
     circuit: C,
     pk: &ProvingKey<E>,
     rng: &mut R,
-) -> Result<Proof<E>, SynthesisError>
+) -> R1CSResult<Proof<E>>
 where
     E: PairingEngine,
     C: ConstraintSynthesizer<E::Fr>,
@@ -30,10 +30,7 @@ where
 
 /// Create a Groth16 proof that is *not* zero-knowledge.
 #[inline]
-pub fn create_proof_no_zk<E, C>(
-    circuit: C,
-    pk: &ProvingKey<E>,
-) -> Result<Proof<E>, SynthesisError>
+pub fn create_proof_no_zk<E, C>(circuit: C, pk: &ProvingKey<E>) -> R1CSResult<Proof<E>>
 where
     E: PairingEngine,
     C: ConstraintSynthesizer<E::Fr>,
@@ -48,7 +45,7 @@ pub fn create_proof<E, C>(
     pk: &ProvingKey<E>,
     r: E::Fr,
     s: E::Fr,
-) -> Result<Proof<E>, SynthesisError>
+) -> R1CSResult<Proof<E>>
 where
     E: PairingEngine,
     C: ConstraintSynthesizer<E::Fr>,

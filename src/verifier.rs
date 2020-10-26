@@ -3,7 +3,7 @@ use ark_ff::PrimeField;
 
 use super::{PreparedVerifyingKey, Proof, VerifyingKey};
 
-use ark_relations::r1cs::SynthesisError;
+use ark_relations::r1cs::{Result as R1CSResult, SynthesisError};
 
 use core::ops::{AddAssign, Neg};
 
@@ -23,7 +23,7 @@ pub fn verify_proof<E: PairingEngine>(
     pvk: &PreparedVerifyingKey<E>,
     proof: &Proof<E>,
     public_inputs: &[E::Fr],
-) -> Result<bool, SynthesisError> {
+) -> R1CSResult<bool> {
     if (public_inputs.len() + 1) != pvk.vk.gamma_abc_g1.len() {
         return Err(SynthesisError::MalformedVerifyingKey);
     }

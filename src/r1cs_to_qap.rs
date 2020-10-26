@@ -3,7 +3,7 @@ use ark_poly::EvaluationDomain;
 use ark_std::{cfg_iter, cfg_iter_mut, vec};
 
 use crate::Vec;
-use ark_relations::r1cs::{ConstraintSystemRef, SynthesisError};
+use ark_relations::r1cs::{ConstraintSystemRef, Result as R1CSResult, SynthesisError};
 use core::ops::{AddAssign, Deref};
 
 #[cfg(feature = "parallel")]
@@ -48,7 +48,7 @@ impl R1CStoQAP {
     pub(crate) fn instance_map_with_evaluation<F: PrimeField, D: EvaluationDomain<F>>(
         cs: ConstraintSystemRef<F>,
         t: &F,
-    ) -> Result<(Vec<F>, Vec<F>, Vec<F>, F, usize, usize), SynthesisError> {
+    ) -> R1CSResult<(Vec<F>, Vec<F>, Vec<F>, F, usize, usize)> {
         let matrices = cs.to_matrices().unwrap();
         let domain_size = cs.num_constraints() + cs.num_instance_variables();
         let domain = D::new(domain_size).ok_or(SynthesisError::PolynomialDegreeTooLarge)?;
@@ -92,7 +92,7 @@ impl R1CStoQAP {
     #[inline]
     pub(crate) fn witness_map<F: PrimeField, D: EvaluationDomain<F>>(
         prover: ConstraintSystemRef<F>,
-    ) -> Result<Vec<F>, SynthesisError> {
+    ) -> R1CSResult<Vec<F>> {
         let matrices = prover.to_matrices().unwrap();
         let zero = F::zero();
         let num_inputs = prover.num_instance_variables();
