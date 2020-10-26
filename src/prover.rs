@@ -1,58 +1,60 @@
-use rand::Rng;
-
-use ark_ec::{msm::VariableBaseMSM, AffineCurve, PairingEngine, ProjectiveCurve};
+use crate::{r1cs_to_qap::R1CStoQAP, ProvingKey, Proof};
 use ark_ff::{PrimeField, UniformRand, Zero};
-
-use crate::{r1cs_to_qap::R1CStoQAP, Parameters, Proof};
-
-use ark_relations::r1cs::{ConstraintSynthesizer, ConstraintSystem, SynthesisError};
-
-use ark_poly::EvaluationDomain;
+use ark_ec::{msm::VariableBaseMSM, AffineCurve, PairingEngine, ProjectiveCurve};
+use ark_poly::GeneralEvaluationDomain;
 use ark_std::{cfg_into_iter, cfg_iter, vec::Vec};
+use ark_relations::r1cs::{ConstraintSynthesizer, ConstraintSystem, SynthesisError};
+use rand::Rng;
 
 #[cfg(feature = "parallel")]
 use rayon::prelude::*;
 
-pub fn create_random_proof<E, C, D, R>(
+/// Create a Groth16 proof that is zero-knowledge.
+/// This method samples randomness for zero knowledges via `rng`.
+#[inline]
+pub fn create_random_proof<E, C, R>(
     circuit: C,
-    params: &Parameters<E>,
+    pk: &ProvingKey<E>,
     rng: &mut R,
 ) -> Result<Proof<E>, SynthesisError>
 where
     E: PairingEngine,
     C: ConstraintSynthesizer<E::Fr>,
-    D: EvaluationDomain<E::Fr>,
     R: Rng,
 {
     let r = E::Fr::rand(rng);
     let s = E::Fr::rand(rng);
 
-    create_proof::<E, C, D>(circuit, params, r, s)
+    create_proof::<E, C>(circuit, pk, r, s)
 }
 
-pub fn create_proof_no_zk<E, C, D>(
+/// Create a Groth16 proof that is *not* zero-knowledge.
+#[inline]
+pub fn create_proof_no_zk<E, C>(
     circuit: C,
-    params: &Parameters<E>,
+    pk: &ProvingKey<E>,
 ) -> Result<Proof<E>, SynthesisError>
 where
     E: PairingEngine,
     C: ConstraintSynthesizer<E::Fr>,
-    D: EvaluationDomain<E::Fr>,
 {
-    create_proof::<E, C, D>(circuit, params, E::Fr::zero(), E::Fr::zero())
+    create_proof::<E, C>(circuit, pk, E::Fr::zero(), E::Fr::zero())
 }
 
-pub fn create_proof<E, C, D>(
+/// Create a Groth16 proof using randomness `r` and `s`.
+#[inline]
+pub fn create_proof<E, C>(
     circuit: C,
-    params: &Parameters<E>,
+    pk: &ProvingKey<E>,
     r: E::Fr,
     s: E::Fr,
 ) -> Result<Proof<E>, SynthesisError>
 where
     E: PairingEngine,
     C: ConstraintSynthesizer<E::Fr>,
-    D: EvaluationDomain<E::Fr>,
 {
+    type D<F> = GeneralEvaluationDomain<F>;
+
     let prover_time = start_timer!(|| "Groth16::Prover");
     let cs = ConstraintSystem::new_ref();
 
@@ -67,12 +69,12 @@ where
     end_timer!(lc_time);
 
     let witness_map_time = start_timer!(|| "R1CS to QAP witness map");
-    let h = R1CStoQAP::witness_map::<E, D>(cs.clone())?;
+    let h = R1CStoQAP::witness_map::<E::Fr, D<E::Fr>>(cs.clone())?;
     end_timer!(witness_map_time);
     let prover = cs.borrow().unwrap();
 
     let input_assignment = prover.instance_assignment[1..]
-        .into_iter()
+        .iter()
         .map(|s| s.into_repr())
         .collect::<Vec<_>>();
 
@@ -87,20 +89,17 @@ where
 
     // Compute A
     let a_acc_time = start_timer!(|| "Compute A");
-    let a_query = params.get_a_query_full()?;
-    let r_g1 = params.delta_g1.mul(r);
+    let r_g1 = pk.delta_g1.mul(r);
 
-    let g_a = calculate_coeff(r_g1, a_query, params.vk.alpha_g1, &assignment);
+    let g_a = calculate_coeff(r_g1, &pk.a_query, pk.vk.alpha_g1, &assignment);
 
     end_timer!(a_acc_time);
 
     // Compute B in G1 if needed
     let g1_b = if r != E::Fr::zero() {
         let b_g1_acc_time = start_timer!(|| "Compute B in G1");
-        let s_g1 = params.delta_g1.mul(s);
-        let b_query = params.get_b_g1_query_full()?;
-
-        let g1_b = calculate_coeff(s_g1, b_query, params.beta_g1, &assignment);
+        let s_g1 = pk.delta_g1.mul(s);
+        let g1_b = calculate_coeff(s_g1, &pk.b_g1_query, pk.beta_g1, &assignment);
 
         end_timer!(b_g1_acc_time);
 
@@ -111,24 +110,21 @@ where
 
     // Compute B in G2
     let b_g2_acc_time = start_timer!(|| "Compute B in G2");
-    let b_query = params.get_b_g2_query_full()?;
-    let s_g2 = params.vk.delta_g2.mul(s);
-    let g2_b = calculate_coeff(s_g2, b_query, params.vk.beta_g2, &assignment);
+    let s_g2 = pk.vk.delta_g2.mul(s);
+    let g2_b = calculate_coeff(s_g2, &pk.b_g2_query, pk.vk.beta_g2, &assignment);
 
     end_timer!(b_g2_acc_time);
 
     // Compute C
     let c_acc_time = start_timer!(|| "Compute C");
 
-    let h_query = params.get_h_query_full()?;
-    let h_acc = VariableBaseMSM::multi_scalar_mul(&h_query, &h_assignment);
+    let h_acc = VariableBaseMSM::multi_scalar_mul(&pk.h_query, &h_assignment);
 
-    let l_aux_source = params.get_l_query_full()?;
-    let l_aux_acc = VariableBaseMSM::multi_scalar_mul(l_aux_source, &aux_assignment);
+    let l_aux_acc = VariableBaseMSM::multi_scalar_mul(&pk.l_query, &aux_assignment);
 
     let s_g_a = g_a.mul(s);
     let r_g1_b = g1_b.mul(r);
-    let r_s_delta_g1 = params.delta_g1.into_projective().mul(r).mul(s);
+    let r_s_delta_g1 = pk.delta_g1.into_projective().mul(r).mul(s);
 
     let mut g_c = s_g_a;
     g_c += &r_g1_b;

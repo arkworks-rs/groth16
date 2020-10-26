@@ -3,31 +3,33 @@ use ark_ff::PrimeField;
 
 use super::{PreparedVerifyingKey, Proof, VerifyingKey};
 
-use crate::SynthesisError;
+use ark_relations::r1cs::SynthesisError;
 
 use core::ops::{AddAssign, Neg};
 
+/// Prepare the verifying key `vk` for use in proof verification.
 pub fn prepare_verifying_key<E: PairingEngine>(vk: &VerifyingKey<E>) -> PreparedVerifyingKey<E> {
     PreparedVerifyingKey {
         vk: vk.clone(),
         alpha_g1_beta_g2: E::pairing(vk.alpha_g1, vk.beta_g2),
         gamma_g2_neg_pc: vk.gamma_g2.neg().into(),
         delta_g2_neg_pc: vk.delta_g2.neg().into(),
-        gamma_abc_g1: vk.gamma_abc_g1.clone(),
     }
 }
 
+/// Verify a Groth16 proof `proof` against the prepared verification key `pvk`,
+/// with respect to the instance `public_inputs`.
 pub fn verify_proof<E: PairingEngine>(
     pvk: &PreparedVerifyingKey<E>,
     proof: &Proof<E>,
     public_inputs: &[E::Fr],
 ) -> Result<bool, SynthesisError> {
-    if (public_inputs.len() + 1) != pvk.gamma_abc_g1.len() {
+    if (public_inputs.len() + 1) != pvk.vk.gamma_abc_g1.len() {
         return Err(SynthesisError::MalformedVerifyingKey);
     }
 
-    let mut g_ic = pvk.gamma_abc_g1[0].into_projective();
-    for (i, b) in public_inputs.iter().zip(pvk.gamma_abc_g1.iter().skip(1)) {
+    let mut g_ic = pvk.vk.gamma_abc_g1[0].into_projective();
+    for (i, b) in public_inputs.iter().zip(pvk.vk.gamma_abc_g1.iter().skip(1)) {
         g_ic.add_assign(&b.mul(i.into_repr()));
     }
 
