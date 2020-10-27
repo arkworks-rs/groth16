@@ -1,10 +1,9 @@
-use ark_ec::PairingEngine;
-use ark_ff::{One, Zero};
+use ark_ff::{One, PrimeField, Zero};
 use ark_poly::EvaluationDomain;
 use ark_std::{cfg_iter, cfg_iter_mut, vec};
 
 use crate::Vec;
-use ark_relations::r1cs::{ConstraintSystemRef, SynthesisError};
+use ark_relations::r1cs::{ConstraintSystemRef, Result as R1CSResult, SynthesisError};
 use core::ops::{AddAssign, Deref};
 
 #[cfg(feature = "parallel")]
@@ -46,10 +45,10 @@ pub(crate) struct R1CStoQAP;
 
 impl R1CStoQAP {
     #[inline]
-    pub(crate) fn instance_map_with_evaluation<E: PairingEngine, D: EvaluationDomain<E::Fr>>(
-        cs: ConstraintSystemRef<E::Fr>,
-        t: &E::Fr,
-    ) -> Result<(Vec<E::Fr>, Vec<E::Fr>, Vec<E::Fr>, E::Fr, usize, usize), SynthesisError> {
+    pub(crate) fn instance_map_with_evaluation<F: PrimeField, D: EvaluationDomain<F>>(
+        cs: ConstraintSystemRef<F>,
+        t: &F,
+    ) -> R1CSResult<(Vec<F>, Vec<F>, Vec<F>, F, usize, usize)> {
         let matrices = cs.to_matrices().unwrap();
         let domain_size = cs.num_constraints() + cs.num_instance_variables();
         let domain = D::new(domain_size).ok_or(SynthesisError::PolynomialDegreeTooLarge)?;
@@ -64,12 +63,15 @@ impl R1CStoQAP {
 
         let qap_num_variables = (cs.num_instance_variables() - 1) + cs.num_witness_variables();
 
-        let mut a = vec![E::Fr::zero(); qap_num_variables + 1];
-        let mut b = vec![E::Fr::zero(); qap_num_variables + 1];
-        let mut c = vec![E::Fr::zero(); qap_num_variables + 1];
+        let mut a = vec![F::zero(); qap_num_variables + 1];
+        let mut b = vec![F::zero(); qap_num_variables + 1];
+        let mut c = vec![F::zero(); qap_num_variables + 1];
 
-        for i in 0..cs.num_instance_variables() {
-            a[i] = u[cs.num_constraints() + i];
+        {
+            let start = 0;
+            let end = cs.num_instance_variables();
+            let num_constraints = cs.num_constraints();
+            a[start..end].copy_from_slice(&u[(start + num_constraints)..(end + num_constraints)]);
         }
 
         for i in 0..cs.num_constraints() {
@@ -88,11 +90,11 @@ impl R1CStoQAP {
     }
 
     #[inline]
-    pub(crate) fn witness_map<E: PairingEngine, D: EvaluationDomain<E::Fr>>(
-        prover: ConstraintSystemRef<E::Fr>,
-    ) -> Result<Vec<E::Fr>, SynthesisError> {
+    pub(crate) fn witness_map<F: PrimeField, D: EvaluationDomain<F>>(
+        prover: ConstraintSystemRef<F>,
+    ) -> R1CSResult<Vec<F>> {
         let matrices = prover.to_matrices().unwrap();
-        let zero = E::Fr::zero();
+        let zero = F::zero();
         let num_inputs = prover.num_instance_variables();
         let num_constraints = prover.num_constraints();
         let cs = prover.borrow().unwrap();
@@ -120,8 +122,10 @@ impl R1CStoQAP {
                 *b = evaluate_constraint(&bt_i, &full_assignment);
             });
 
-        for i in 0..num_inputs {
-            a[num_constraints + i] = full_assignment[i];
+        {
+            let start = num_constraints;
+            let end = start + num_inputs;
+            a[start..end].clone_from_slice(&full_assignment[..num_inputs]);
         }
 
         domain.ifft_in_place(&mut a);
