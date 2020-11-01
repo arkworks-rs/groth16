@@ -16,6 +16,7 @@
 #[macro_use]
 extern crate bench_utils;
 
+#[cfg(feature = "r1cs")]
 #[macro_use]
 extern crate derivative;
 
@@ -44,9 +45,9 @@ mod test;
 pub use self::data_structures::*;
 pub use self::{generator::*, prover::*, verifier::*};
 
+use ark_crypto_primitives::snark::*;
 use ark_ec::PairingEngine;
 use ark_relations::r1cs::{ConstraintSynthesizer, SynthesisError};
-use ark_crypto_primitives::snark::*;
 use ark_std::{marker::PhantomData, vec::Vec};
 use rand::RngCore;
 

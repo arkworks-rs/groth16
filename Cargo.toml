@@ -22,7 +22,7 @@ ark-poly = { git = "https://github.com/arkworks-rs/algebra", default-features = 
 ark-std = { git = "https://github.com/arkworks-rs/utils", default-features = false }
 bench-utils = { git = "https://github.com/arkworks-rs/utils" }
 ark-relations = { git = "https://github.com/arkworks-rs/snark", default-features = false }
-ark-crypto-primitives = { git = "https://github.com/arkworks-rs/crypto-primitives", default-features = false, branch = "main" }
+ark-crypto-primitives = { git = "https://github.com/arkworks-rs/crypto-primitives.git", branch = "main", default-features = false,  features = [ "r1cs" ] }
 ark-r1cs-std = { git = "https://github.com/arkworks-rs/r1cs-std", default-features = false, optional = true }
 
 tracing = { version = "0.1", default-features = false, features = [ "attributes" ], optional = true }
@@ -35,6 +35,8 @@ rayon = { version = "1", optional = true }
 csv = { version = "1" }
 ark-bls12-377 = { git = "https://github.com/arkworks-rs/curves", default-features = false, features = ["curve"] }
 ark-cp6-782 = { git = "https://github.com/arkworks-rs/curves", default-features = false }
+ark-mnt4-298 = { git = "https://github.com/arkworks-rs/curves", default-features = false, features = ["r1cs", "curve"] }
+ark-mnt6-298 = { git = "https://github.com/arkworks-rs/curves", default-features = false, features = ["r1cs"] }
 
 [features]
 default = ["parallel"]
