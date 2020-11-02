@@ -95,7 +95,7 @@ impl<E: PairingEngine, P: PairingVar<E, E::Fq>> SNARKGadget<E::Fr, E::Fq, Groth1
     for Groth16VerifierGadget<E, P>
 {
     type ProcessedVerifyingKeyVar = PreparedVerifyingKeyVar<E, P>;
-    type VerifyingKeyVar = VerifyingKeyVar<E, P>;
+    type VerifyingKeyVar = VerifyingKeyVar<E, P>;gamma_abc_g1
     type InputVar = BooleanInputVar<E::Fr, E::Fq>;
     type ProofVar = ProofVar<E, P>;
 
@@ -170,18 +170,18 @@ impl<E: PairingEngine, P: PairingVar<E, E::Fq>> SNARKGadget<E::Fr, E::Fq, Groth1
                 || Ok(vk.delta_g2.into_projective()),
                 mode,
             )?;
-
             let gamma_abc_g1 = vk
                 .gamma_abc_g1
                 .iter()
                 .map(|g| {
                     P::G1Var::new_variable_omit_prime_order_check(
-                        ark_relations::ns!(cs, "g"),
+                        ark_relations::ns!(cs, "gamma_abc_g1"),
                         || Ok(g.into_projective()),
                         mode,
                     )
                 })
                 .collect::<Result<Vec<_>, _>>()?;
+
             Ok(VerifyingKeyVar {
                 alpha_g1,
                 beta_g2,
@@ -438,8 +438,7 @@ mod test {
             })?;
 
             for _ in 0..(self.num_variables - 3) {
-                let _ =
-                    cs.new_witness_variable(|| self.a.ok_or(SynthesisError::AssignmentMissing))?;
+                cs.new_witness_variable(|| self.a.ok_or(SynthesisError::AssignmentMissing))?;
             }
 
             for _ in 0..self.num_constraints {
