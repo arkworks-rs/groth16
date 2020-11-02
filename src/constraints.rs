@@ -310,7 +310,6 @@ where
 impl<E, P> AllocVar<VerifyingKey<E>, E::Fq> for VerifyingKeyVar<E, P>
 where
     E: PairingEngine,
-
     P: PairingVar<E>,
 {
     #[tracing::instrument(target = "r1cs", skip(cs, f))]
