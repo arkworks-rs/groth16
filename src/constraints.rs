@@ -95,7 +95,7 @@ impl<E: PairingEngine, P: PairingVar<E, E::Fq>> SNARKGadget<E::Fr, E::Fq, Groth1
     for Groth16VerifierGadget<E, P>
 {
     type ProcessedVerifyingKeyVar = PreparedVerifyingKeyVar<E, P>;
-    type VerifyingKeyVar = VerifyingKeyVar<E, P>;gamma_abc_g1
+    type VerifyingKeyVar = VerifyingKeyVar<E, P>;
     type InputVar = BooleanInputVar<E::Fr, E::Fq>;
     type ProofVar = ProofVar<E, P>;
 
