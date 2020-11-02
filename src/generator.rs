@@ -29,7 +29,6 @@ where
 }
 
 /// Create parameters for a circuit, given some toxic waste.
-#[inline]
 pub fn generate_parameters<E, C, R>(
     circuit: C,
     alpha: E::Fr,

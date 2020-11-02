@@ -22,7 +22,12 @@ ark-poly = { git = "https://github.com/arkworks-rs/algebra", default-features = 
 ark-std = { git = "https://github.com/arkworks-rs/utils", default-features = false }
 bench-utils = { git = "https://github.com/arkworks-rs/utils" }
 ark-relations = { git = "https://github.com/arkworks-rs/snark", default-features = false }
-ark-snark = { git = "https://github.com/arkworks-rs/snark", default-features = false }
+ark-crypto-primitives = { git = "https://github.com/arkworks-rs/crypto-primitives.git", branch = "main", default-features = false }
+ark-r1cs-std = { git = "https://github.com/arkworks-rs/r1cs-std", default-features = false, optional = true }
+
+tracing = { version = "0.1", default-features = false, features = [ "attributes" ], optional = true }
+derivative = { version = "2.0", features = ["use_core"], optional = true}
+
 rand = { version = "0.7", default-features = false }
 rayon = { version = "1", optional = true }
 
@@ -30,15 +35,14 @@ rayon = { version = "1", optional = true }
 csv = { version = "1" }
 ark-bls12-377 = { git = "https://github.com/arkworks-rs/curves", default-features = false, features = ["curve"] }
 ark-cp6-782 = { git = "https://github.com/arkworks-rs/curves", default-features = false }
-
-# algebra = { git = "https://github.com/scipr-lab/zexe", default-features = false, features = [ "bls12_377", "bls12_381", "cp6_782", "mnt6_298", "mnt4_298" ] }
-# r1cs-std = { git = "https://github.com/scipr-lab/zexe", default-features = false, features = [ "mnt6_298", "mnt4_298" ] }
-# crypto-primitives = { git = "https://github.com/scipr-lab/zexe", default-features = false, features = [ "groth16", "r1cs" ] }
+ark-mnt4-298 = { git = "https://github.com/arkworks-rs/curves", default-features = false, features = ["r1cs", "curve"] }
+ark-mnt6-298 = { git = "https://github.com/arkworks-rs/curves", default-features = false, features = ["r1cs"] }
 
 [features]
 default = ["parallel"]
-std = ["ark-ff/std", "ark-ec/std", "ark-poly/std", "ark-relations/std", "ark-std/std" ]
-parallel = ["std", "ark-ff/parallel", "ark-poly/parallel", "ark-ec/parallel", "ark-std/parallel", "rayon"]
+std = ["ark-ff/std", "ark-ec/std", "ark-poly/std", "ark-relations/std", "ark-crypto-primitives/std", "ark-std/std" ]
+parallel = ["std", "ark-ff/parallel", "ark-poly/parallel", "ark-ec/parallel", "ark-crypto-primitives/parallel", "ark-std/parallel", "rayon"]
+r1cs = [ "ark-crypto-primitives/r1cs", "ark-r1cs-std", "tracing", "derivative" ]
 print-trace = [ "bench-utils/print-trace" ]
 
 [[example]]

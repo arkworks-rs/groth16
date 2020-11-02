@@ -16,6 +16,10 @@
 #[macro_use]
 extern crate bench_utils;
 
+#[cfg(feature = "r1cs")]
+#[macro_use]
+extern crate derivative;
+
 /// Reduce an R1CS instance to a *Quadratic Arithmetic Program* instance.
 pub(crate) mod r1cs_to_qap;
 
@@ -31,17 +35,21 @@ pub mod prover;
 /// Verify proofs for the Groth16 zkSNARK construction.
 pub mod verifier;
 
+/// Constraints for the Groth16 verifier.
+#[cfg(feature = "r1cs")]
+pub mod constraints;
+
 #[cfg(test)]
 mod test;
 
-use ark_ec::PairingEngine;
-use ark_relations::r1cs::{ConstraintSynthesizer, SynthesisError};
-use ark_snark::*;
-use ark_std::{marker::PhantomData, vec::Vec};
-use rand::RngCore;
-
 pub use self::data_structures::*;
 pub use self::{generator::*, prover::*, verifier::*};
+
+use ark_crypto_primitives::snark::*;
+use ark_ec::PairingEngine;
+use ark_relations::r1cs::{ConstraintSynthesizer, SynthesisError};
+use ark_std::{marker::PhantomData, vec::Vec};
+use rand::RngCore;
 
 /// The SNARK of [[Groth16]](https://eprint.iacr.org/2016/260.pdf).
 pub struct Groth16<E: PairingEngine> {

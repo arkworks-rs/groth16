@@ -50,7 +50,7 @@ pub struct VerifyingKey<E: PairingEngine> {
     pub gamma_g2: E::G2Affine,
     /// The `delta * H`, where `H` is the generator of `E::G2`.
     pub delta_g2: E::G2Affine,
-    /// The `gamma^{-1} * (alpha * a_i + beta * b_i + c_i) * H`, where `H` is the generator of `E::G2`.
+    /// The `gamma^{-1} * (alpha * a_i + beta * b_i + c_i) * H`, where `H` is the generator of `E::G1`.
     pub gamma_abc_g1: Vec<E::G1Affine>,
 }
 
