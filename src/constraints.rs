@@ -26,27 +26,27 @@ pub struct ProofVar<E: PairingEngine, P: PairingVar<E>> {
     pub c: P::G1Var,
 }
 
-/// The verifying key variable for the Groth16 construction
+/// A variable representing the Groth16 verifying key in the constraint system.
 #[derive(Derivative)]
 #[derivative(
     Clone(bound = "P::G1Var: Clone, P::GTVar: Clone, P::G1PreparedVar: Clone, \
     P::G2PreparedVar: Clone, ")
 )]
 pub struct VerifyingKeyVar<E: PairingEngine, P: PairingVar<E>> {
-    /// The `alpha * G`, where `G` is the generator of `E::G1`.
+    #[doc(hidden)]
     pub alpha_g1: P::G1Var,
-    /// The `beta * G`, where `G` is the generator of `E::G2`.
+    #[doc(hidden)]
     pub beta_g2: P::G2Var,
-    /// The `gamma * G`, where `G` is the generator of `E::G2`.
+    #[doc(hidden)]
     pub gamma_g2: P::G2Var,
-    /// The `delta * G`, where `G` is the generator of `E::G2`.
+    #[doc(hidden)]
     pub delta_g2: P::G2Var,
-    /// The `gamma^{-1} * (alpha * a_i + beta * b_i + c_i) * H`, where `H` is the generator of `E::G1`.
+    #[doc(hidden)]
     pub gamma_abc_g1: Vec<P::G1Var>,
 }
 
 impl<E: PairingEngine, P: PairingVar<E>> VerifyingKeyVar<E, P> {
-    /// Prepare the verifying key `vk` for use in proof verification.
+    /// Prepare `self` for use in proof verification.
     pub fn prepare(&self) -> Result<PreparedVerifyingKeyVar<E, P>, SynthesisError> {
         let alpha_g1_pc = P::prepare_g1(&self.alpha_g1)?;
         let beta_g2_pc = P::prepare_g2(&self.beta_g2)?;
@@ -71,17 +71,17 @@ impl<E: PairingEngine, P: PairingVar<E>> VerifyingKeyVar<E, P> {
     P::G2PreparedVar: Clone, ")
 )]
 pub struct PreparedVerifyingKeyVar<E: PairingEngine, P: PairingVar<E>> {
-    /// The element `e(alpha * G, beta * H)` in `E::GT`.
+    #[doc(hidden)]
     pub alpha_g1_beta_g2: P::GTVar,
-    /// The element `- gamma * H` in `E::G2`, prepared for use in pairings.
+    #[doc(hidden)]
     pub gamma_g2_neg_pc: P::G2PreparedVar,
-    /// The element `- delta * H` in `E::G2`, prepared for use in pairings.
+    #[doc(hidden)]
     pub delta_g2_neg_pc: P::G2PreparedVar,
-    /// The `gamma^{-1} * (alpha * a_i + beta * b_i + c_i) * H`, where `H` is the generator of `E::G1`.
+    #[doc(hidden)]
     pub gamma_abc_g1: Vec<P::G1Var>,
 }
 
-/// The SNARK verifier gadget of [[Groth16]](https://eprint.iacr.org/2016/260.pdf).
+/// Constraints for the verifier of the SNARK of [[Groth16]](https://eprint.iacr.org/2016/260.pdf).
 pub struct Groth16VerifierGadget<E, P>
 where
     E: PairingEngine,
