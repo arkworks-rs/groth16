@@ -45,6 +45,7 @@ pub(crate) struct R1CStoQAP;
 
 impl R1CStoQAP {
     #[inline]
+    #[allow(clippy::type_complexity)]
     pub(crate) fn instance_map_with_evaluation<F: PrimeField, D: EvaluationDomain<F>>(
         cs: ConstraintSystemRef<F>,
         t: &F,
@@ -74,15 +75,15 @@ impl R1CStoQAP {
             a[start..end].copy_from_slice(&u[(start + num_constraints)..(end + num_constraints)]);
         }
 
-        for i in 0..cs.num_constraints() {
+        for (i, u_i) in u.iter().enumerate().take(cs.num_constraints()) {
             for &(ref coeff, index) in &matrices.a[i] {
-                a[index] += &(u[i] * coeff);
+                a[index] += &(*u_i * coeff);
             }
             for &(ref coeff, index) in &matrices.b[i] {
-                b[index] += &(u[i] * coeff);
+                b[index] += &(*u_i * coeff);
             }
             for &(ref coeff, index) in &matrices.c[i] {
-                c[index] += &(u[i] * coeff);
+                c[index] += &(*u_i * coeff);
             }
         }
 
