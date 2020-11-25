@@ -13,7 +13,7 @@ use ark_relations::{
     lc,
     r1cs::{ConstraintSynthesizer, ConstraintSystemRef, SynthesisError},
 };
-use core::ops::Mul;
+use ark_std::ops::Mul;
 use criterion::Criterion;
 
 #[derive(Copy)]
