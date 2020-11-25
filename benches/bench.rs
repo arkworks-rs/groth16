@@ -1,5 +1,9 @@
-#[macro_use]
-extern crate criterion;
+// Needs to run with
+//      cargo bench --no-default-features --features std -- --nocapture
+// because
+// - Otherwise, the default parallel feature would provide a number with parallel execution.
+// - The std crate is needed for obtaining the time.
+// - The nocapture is needed to display the result.
 
 use ark_bls12_381::{Bls12_381, Fr as BlsFr};
 use ark_crypto_primitives::SNARK;
@@ -14,7 +18,9 @@ use ark_relations::{
     r1cs::{ConstraintSynthesizer, ConstraintSystemRef, SynthesisError},
 };
 use ark_std::ops::Mul;
-use criterion::Criterion;
+
+const NUM_PROVE_REPEATITIONS: usize = 50;
+const NUM_VERIFY_REPEATITIONS: usize = 50;
 
 #[derive(Copy)]
 struct DummyCircuit<F: PrimeField> {
@@ -61,7 +67,7 @@ impl<F: PrimeField> ConstraintSynthesizer<F> for DummyCircuit<F> {
 }
 
 macro_rules! groth16_prove_bench {
-    ($bench_name:ident, $bench_field:ty, $bench_pairing_engine:ty, $cr:ident) => {
+    ($bench_name:ident, $bench_field:ty, $bench_pairing_engine:ty) => {
         let rng = &mut ark_ff::test_rng();
         let c = DummyCircuit::<$bench_field> {
             a: Some(<$bench_field>::rand(rng)),
@@ -72,14 +78,21 @@ macro_rules! groth16_prove_bench {
 
         let (pk, _) = Groth16::<$bench_pairing_engine>::circuit_specific_setup(c, rng).unwrap();
 
-        $cr.bench_function(&format!("prove_{}", stringify!($bench_name)), |b| {
-            b.iter(|| Groth16::<$bench_pairing_engine>::prove(&pk, c.clone(), rng).unwrap())
-        });
+        let start = ark_std::time::Instant::now();
+
+        for _ in 0..NUM_PROVE_REPEATITIONS {
+            let _ = Groth16::<$bench_pairing_engine>::prove(&pk, c.clone(), rng).unwrap();
+        }
+
+        println!(
+            "per-constraint proving time: {} ns/constraint",
+            start.elapsed().as_nanos() / NUM_PROVE_REPEATITIONS as u128 / 65536u128
+        );
     };
 }
 
 macro_rules! groth16_verify_bench {
-    ($bench_name:ident, $bench_field:ty, $bench_pairing_engine:ty, $cr:ident) => {
+    ($bench_name:ident, $bench_field:ty, $bench_pairing_engine:ty) => {
         let rng = &mut ark_ff::test_rng();
         let c = DummyCircuit::<$bench_field> {
             a: Some(<$bench_field>::rand(rng)),
@@ -93,38 +106,36 @@ macro_rules! groth16_verify_bench {
 
         let v = c.a.unwrap().mul(c.b.unwrap());
 
-        $cr.bench_function(&format!("verify_{}", stringify!($bench_name)), |b| {
-            b.iter(|| Groth16::<$bench_pairing_engine>::verify(&vk, &vec![v], &proof).unwrap())
-        });
+        let start = ark_std::time::Instant::now();
+
+        for _ in 0..NUM_VERIFY_REPEATITIONS {
+            let _ = Groth16::<$bench_pairing_engine>::verify(&vk, &vec![v], &proof).unwrap();
+        }
+
+        println!(
+            "verifying time: {} ns/constraint",
+            start.elapsed().as_nanos() / NUM_VERIFY_REPEATITIONS as u128
+        );
     };
 }
 
-fn bench_prove(cr: &mut Criterion) {
-    groth16_prove_bench!(bls, BlsFr, Bls12_381, cr);
-    groth16_prove_bench!(mnt4, MNT4Fr, MNT4_298, cr);
-    groth16_prove_bench!(mnt6, MNT6Fr, MNT6_298, cr);
-    groth16_prove_bench!(mnt4big, MNT4BigFr, MNT4_753, cr);
-    groth16_prove_bench!(mnt6big, MNT6BigFr, MNT6_753, cr);
+fn bench_prove() {
+    groth16_prove_bench!(bls, BlsFr, Bls12_381);
+    groth16_prove_bench!(mnt4, MNT4Fr, MNT4_298);
+    groth16_prove_bench!(mnt6, MNT6Fr, MNT6_298);
+    groth16_prove_bench!(mnt4big, MNT4BigFr, MNT4_753);
+    groth16_prove_bench!(mnt6big, MNT6BigFr, MNT6_753);
 }
 
-fn bench_verify(cr: &mut Criterion) {
-    groth16_verify_bench!(bls, BlsFr, Bls12_381, cr);
-    groth16_verify_bench!(mnt4, MNT4Fr, MNT4_298, cr);
-    groth16_verify_bench!(mnt6, MNT6Fr, MNT6_298, cr);
-    groth16_verify_bench!(mnt4big, MNT4BigFr, MNT4_753, cr);
-    groth16_verify_bench!(mnt6big, MNT6BigFr, MNT6_753, cr);
+fn bench_verify() {
+    groth16_verify_bench!(bls, BlsFr, Bls12_381);
+    groth16_verify_bench!(mnt4, MNT4Fr, MNT4_298);
+    groth16_verify_bench!(mnt6, MNT6Fr, MNT6_298);
+    groth16_verify_bench!(mnt4big, MNT4BigFr, MNT4_753);
+    groth16_verify_bench!(mnt6big, MNT6BigFr, MNT6_753);
 }
 
-criterion_group! {
-    name = groth16_prove;
-    config = Criterion::default().sample_size(50);
-    targets = bench_prove
+fn main() {
+    bench_prove();
+    bench_verify();
 }
-
-criterion_group! {
-    name = groth16_verify;
-    config = Criterion::default().sample_size(50);
-    targets = bench_verify
-}
-
-criterion_main!(groth16_prove, groth16_verify);

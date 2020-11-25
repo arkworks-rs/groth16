@@ -30,7 +30,6 @@ derivative = { version = "2.0", features = ["use_core"], optional = true}
 
 rand = { version = "0.7", default-features = false }
 rayon = { version = "1", optional = true }
-criterion = { version = "0.3.1", default-features = false, optional = true }
 
 [dev-dependencies]
 csv = { version = "1" }
@@ -44,7 +43,7 @@ ark-mnt6-753 = { git = "https://github.com/arkworks-rs/curves", default-features
 
 [features]
 default = ["parallel"]
-std = ["ark-ff/std", "ark-ec/std", "ark-poly/std", "ark-relations/std", "ark-crypto-primitives/std", "ark-std/std", "criterion" ]
+std = ["ark-ff/std", "ark-ec/std", "ark-poly/std", "ark-relations/std", "ark-crypto-primitives/std", "ark-std/std" ]
 parallel = ["std", "ark-ff/parallel", "ark-poly/parallel", "ark-ec/parallel", "ark-crypto-primitives/parallel", "ark-std/parallel", "rayon"]
 r1cs = [ "ark-crypto-primitives/r1cs", "ark-r1cs-std", "tracing", "derivative" ]
 print-trace = [ "bench-utils/print-trace" ]
