@@ -33,10 +33,13 @@ rayon = { version = "1", optional = true }
 
 [dev-dependencies]
 csv = { version = "1" }
+ark-bls12-381 = { git = "https://github.com/arkworks-rs/curves", default-features = false, features = ["curve"] }
 ark-bls12-377 = { git = "https://github.com/arkworks-rs/curves", default-features = false, features = ["curve"] }
 ark-cp6-782 = { git = "https://github.com/arkworks-rs/curves", default-features = false }
 ark-mnt4-298 = { git = "https://github.com/arkworks-rs/curves", default-features = false, features = ["r1cs", "curve"] }
 ark-mnt6-298 = { git = "https://github.com/arkworks-rs/curves", default-features = false, features = ["r1cs"] }
+ark-mnt4-753 = { git = "https://github.com/arkworks-rs/curves", default-features = false, features = ["r1cs", "curve"] }
+ark-mnt6-753 = { git = "https://github.com/arkworks-rs/curves", default-features = false, features = ["r1cs"] }
 
 [features]
 default = ["parallel"]
@@ -48,6 +51,12 @@ print-trace = [ "bench-utils/print-trace" ]
 [[example]]
 name = "groth16"
 path = "examples/snark-scalability/groth16.rs"
+required-features = ["std"]
+
+[[bench]]
+name = "groth16-benches"
+path = "benches/bench.rs"
+harness = false
 required-features = ["std"]
 
 # [[example]]
