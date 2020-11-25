@@ -19,7 +19,7 @@ use ark_relations::{
 };
 use ark_std::ops::Mul;
 
-const NUM_PROVE_REPEATITIONS: usize = 50;
+const NUM_PROVE_REPEATITIONS: usize = 10;
 const NUM_VERIFY_REPEATITIONS: usize = 50;
 
 #[derive(Copy)]
@@ -85,7 +85,8 @@ macro_rules! groth16_prove_bench {
         }
 
         println!(
-            "per-constraint proving time: {} ns/constraint",
+            "per-constraint proving time for {}: {} ns/constraint",
+            stringify!($bench_pairing_engine),
             start.elapsed().as_nanos() / NUM_PROVE_REPEATITIONS as u128 / 65536u128
         );
     };
@@ -113,7 +114,8 @@ macro_rules! groth16_verify_bench {
         }
 
         println!(
-            "verifying time: {} ns/constraint",
+            "verifying time for {}: {} ns",
+            stringify!($bench_pairing_engine),
             start.elapsed().as_nanos() / NUM_VERIFY_REPEATITIONS as u128
         );
     };
