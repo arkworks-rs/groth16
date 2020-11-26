@@ -1,9 +1,6 @@
-// Needs to run with
-//      cargo bench --no-default-features --features std -- --nocapture
-// because
-// - Otherwise, the default parallel feature would provide a number with parallel execution.
-// - The std crate is needed for obtaining the time.
-// - The nocapture is needed to display the result.
+// For benchmark, run:
+//     RAYON_NUM_THREADS=N cargo bench --no-default-features --features "std parallel" -- --nocapture
+// where N is the number of threads you want to use (N = 1 for single-thread).
 
 use ark_bls12_381::{Bls12_381, Fr as BlsFr};
 use ark_crypto_primitives::SNARK;
