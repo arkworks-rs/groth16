@@ -68,21 +68,33 @@ where
     let witness_map_time = start_timer!(|| "R1CS to QAP witness map");
     let h = R1CStoQAP::witness_map::<E::Fr, D<E::Fr>>(cs.clone())?;
     end_timer!(witness_map_time);
+    let h_assignment = cfg_into_iter!(h).map(|s| s.into_repr()).collect::<Vec<_>>();
+    let c_acc_time = start_timer!(|| "Compute C");
+
+    let h_acc = VariableBaseMSM::multi_scalar_mul(&pk.h_query, &h_assignment);
+    drop(h_assignment);
+    // Compute C
     let prover = cs.borrow().unwrap();
+    let aux_assignment = cfg_iter!(prover.witness_assignment)
+        .map(|s| s.into_repr())
+        .collect::<Vec<_>>();
+
+    let l_aux_acc = VariableBaseMSM::multi_scalar_mul(&pk.l_query, &aux_assignment);
+
+    let r_s_delta_g1 = pk.delta_g1.into_projective().mul(r).mul(s);
+
+    end_timer!(c_acc_time);
 
     let input_assignment = prover.instance_assignment[1..]
         .iter()
         .map(|s| s.into_repr())
         .collect::<Vec<_>>();
 
-    let aux_assignment = cfg_iter!(prover.witness_assignment)
-        .map(|s| s.into_repr())
-        .collect::<Vec<_>>();
     drop(prover);
+    drop(cs);
 
     let assignment = [&input_assignment[..], &aux_assignment[..]].concat();
-
-    let h_assignment = cfg_into_iter!(h).map(|s| s.into_repr()).collect::<Vec<_>>();
+    drop(aux_assignment);
 
     // Compute A
     let a_acc_time = start_timer!(|| "Compute A");
@@ -90,10 +102,11 @@ where
 
     let g_a = calculate_coeff(r_g1, &pk.a_query, pk.vk.alpha_g1, &assignment);
 
+    let s_g_a = g_a.mul(s);
     end_timer!(a_acc_time);
 
     // Compute B in G1 if needed
-    let g1_b = if r != E::Fr::zero() {
+    let g1_b = if !r.is_zero() {
         let b_g1_acc_time = start_timer!(|| "Compute B in G1");
         let s_g1 = pk.delta_g1.mul(s);
         let g1_b = calculate_coeff(s_g1, &pk.b_g1_query, pk.beta_g1, &assignment);
@@ -109,26 +122,18 @@ where
     let b_g2_acc_time = start_timer!(|| "Compute B in G2");
     let s_g2 = pk.vk.delta_g2.mul(s);
     let g2_b = calculate_coeff(s_g2, &pk.b_g2_query, pk.vk.beta_g2, &assignment);
+    let r_g1_b = g1_b.mul(r);
+    drop(assignment);
 
     end_timer!(b_g2_acc_time);
 
-    // Compute C
-    let c_acc_time = start_timer!(|| "Compute C");
-
-    let h_acc = VariableBaseMSM::multi_scalar_mul(&pk.h_query, &h_assignment);
-
-    let l_aux_acc = VariableBaseMSM::multi_scalar_mul(&pk.l_query, &aux_assignment);
-
-    let s_g_a = g_a.mul(s);
-    let r_g1_b = g1_b.mul(r);
-    let r_s_delta_g1 = pk.delta_g1.into_projective().mul(r).mul(s);
-
+    let c_time = start_timer!(|| "Finish C");
     let mut g_c = s_g_a;
     g_c += &r_g1_b;
     g_c -= &r_s_delta_g1;
     g_c += &l_aux_acc;
     g_c += &h_acc;
-    end_timer!(c_acc_time);
+    end_timer!(c_time);
 
     end_timer!(prover_time);
 

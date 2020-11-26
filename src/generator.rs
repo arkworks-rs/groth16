@@ -68,8 +68,9 @@ where
     ///////////////////////////////////////////////////////////////////////////
 
     let reduction_time = start_timer!(|| "R1CS to QAP Instance Map with Evaluation");
+    let num_instance_variables = cs.num_instance_variables();
     let (a, b, c, zt, qap_num_variables, m_raw) =
-        R1CStoQAP::instance_map_with_evaluation::<E::Fr, D<E::Fr>>(cs.clone(), &t)?;
+        R1CStoQAP::instance_map_with_evaluation::<E::Fr, D<E::Fr>>(cs, &t)?;
     end_timer!(reduction_time);
 
     // Compute query densities
@@ -85,7 +86,6 @@ where
 
     let gamma_inverse = gamma.inverse().ok_or(SynthesisError::UnexpectedIdentity)?;
     let delta_inverse = delta.inverse().ok_or(SynthesisError::UnexpectedIdentity)?;
-    let num_instance_variables = cs.num_instance_variables();
 
     let gamma_abc = cfg_iter!(a[..num_instance_variables])
         .zip(&b[..num_instance_variables])
@@ -98,6 +98,8 @@ where
         .zip(&c)
         .map(|((a, b), c)| (beta * a + &(alpha * b) + c) * &delta_inverse)
         .collect::<Vec<_>>();
+
+    drop(c);
 
     let g1_generator = E::G1Projective::rand(rng);
     let g2_generator = E::G2Projective::rand(rng);
@@ -137,12 +139,14 @@ where
     let a_time = start_timer!(|| "Calculate A");
     let a_query =
         FixedBaseMSM::multi_scalar_mul::<E::G1Projective>(scalar_bits, g1_window, &g1_table, &a);
+    drop(a);
     end_timer!(a_time);
 
     // Compute the B-query in G1
     let b_g1_time = start_timer!(|| "Calculate B G1");
     let b_g1_query =
         FixedBaseMSM::multi_scalar_mul::<E::G1Projective>(scalar_bits, g1_window, &g1_table, &b);
+    drop(b);
     end_timer!(b_g1_time);
 
     // Compute the H-query
@@ -164,8 +168,9 @@ where
         scalar_bits,
         g1_window,
         &g1_table,
-        &l[cs.num_instance_variables()..],
+        &l[num_instance_variables..],
     );
+    drop(l);
     end_timer!(l_time);
 
     end_timer!(proving_key_time);
