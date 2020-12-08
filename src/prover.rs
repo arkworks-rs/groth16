@@ -68,7 +68,7 @@ where
     let witness_map_time = start_timer!(|| "R1CS to QAP witness map");
     let h = R1CStoQAP::witness_map::<E::Fr, D<E::Fr>>(cs.clone())?;
     end_timer!(witness_map_time);
-    let h_assignment = cfg_into_iter!(h).map(|s| s.into_repr()).collect::<Vec<_>>();
+    let h_assignment = cfg_into_iter!(h).map(|s| s.into()).collect::<Vec<_>>();
     let c_acc_time = start_timer!(|| "Compute C");
 
     let h_acc = VariableBaseMSM::multi_scalar_mul(&pk.h_query, &h_assignment);
@@ -81,7 +81,7 @@ where
 
     let l_aux_acc = VariableBaseMSM::multi_scalar_mul(&pk.l_query, &aux_assignment);
 
-    let r_s_delta_g1 = pk.delta_g1.into_projective().mul(r).mul(s);
+    let r_s_delta_g1 = pk.delta_g1.into_projective().mul(r.into()).mul(s.into());
 
     end_timer!(c_acc_time);
 
@@ -102,7 +102,7 @@ where
 
     let g_a = calculate_coeff(r_g1, &pk.a_query, pk.vk.alpha_g1, &assignment);
 
-    let s_g_a = g_a.mul(s);
+    let s_g_a = g_a.mul(s.into());
     end_timer!(a_acc_time);
 
     // Compute B in G1 if needed
@@ -122,7 +122,7 @@ where
     let b_g2_acc_time = start_timer!(|| "Compute B in G2");
     let s_g2 = pk.vk.delta_g2.mul(s);
     let g2_b = calculate_coeff(s_g2, &pk.b_g2_query, pk.vk.beta_g2, &assignment);
-    let r_g1_b = g1_b.mul(r);
+    let r_g1_b = g1_b.mul(r.into());
     drop(assignment);
 
     end_timer!(b_g2_acc_time);
