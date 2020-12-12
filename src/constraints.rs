@@ -400,7 +400,7 @@ mod test {
     use ark_crypto_primitives::snark::constraints::SNARKGadget;
     use ark_crypto_primitives::snark::{CircuitSpecificSetupSNARK, SNARK};
     use ark_ec::PairingEngine;
-    use ark_ff::{test_rng, Field, UniformRand};
+    use ark_ff::{Field, UniformRand};
     use ark_mnt4_298::{
         constraints::PairingVar as MNT4PairingVar, Fr as MNT4Fr, MNT4_298 as MNT4PairingEngine,
     };
@@ -412,6 +412,7 @@ mod test {
         r1cs::{ConstraintSynthesizer, ConstraintSystem, ConstraintSystemRef, SynthesisError},
     };
     use ark_std::ops::MulAssign;
+    use ark_std::test_rng;
 
     #[derive(Copy, Clone)]
     struct Circuit<F: Field> {

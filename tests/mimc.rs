@@ -34,7 +34,8 @@ use std::time::{Duration, Instant};
 // Bring in some tools for using pairing-friendly curves
 // We're going to use the BLS12-377 pairing-friendly elliptic curve.
 use ark_bls12_377::{Bls12_377, Fr};
-use ark_ff::{test_rng, Field};
+use ark_ff::Field;
+use ark_std::test_rng;
 
 // We'll use these interfaces to construct our circuit.
 use ark_relations::{
