@@ -1,4 +1,4 @@
-use ark_ff::{Field, Zero};
+use ark_ff::Field;
 use ark_relations::{
     lc,
     r1cs::{ConstraintSynthesizer, ConstraintSystemRef, SynthesisError},
@@ -43,25 +43,25 @@ mod bls12_377 {
     use ark_ff::{test_rng, UniformRand};
 
     use ark_bls12_377::{Bls12_377, Fr};
-    use core::ops::MulAssign;
 
     #[test]
-    fn prove_and_verify() {
+    fn prove_and_verify_hiding() {
         let rng = &mut test_rng();
 
-        let params =
-            generate_random_parameters::<Bls12_377, _, _>(MySillyCircuit { a: None, b: None }, rng)
-                .unwrap();
+        let params = generate_random_parameters::<Bls12_377, _, _>(
+            MySillyCircuit { a: None, b: None },
+            true,
+            rng,
+        )
+        .unwrap();
 
         let pvk = prepare_verifying_key::<Bls12_377>(&params.vk);
 
         for _ in 0..100 {
             let a = Fr::rand(rng);
             let b = Fr::rand(rng);
-            let mut c = a;
-            c.mul_assign(&b);
 
-            let proof = create_random_proof(
+            let (proof, _) = create_random_proof(
                 MySillyCircuit {
                     a: Some(a),
                     b: Some(b),
@@ -71,8 +71,38 @@ mod bls12_377 {
             )
             .unwrap();
 
-            assert!(verify_proof(&pvk, &proof, &[c]).unwrap());
-            assert!(!verify_proof(&pvk, &proof, &[a]).unwrap());
+            assert!(verify_proof(&pvk, &proof).unwrap());
+        }
+    }
+
+    #[test]
+    fn prove_and_verify_no_hiding() {
+        let rng = &mut test_rng();
+
+        let params = generate_random_parameters::<Bls12_377, _, _>(
+            MySillyCircuit { a: None, b: None },
+            false,
+            rng,
+        )
+        .unwrap();
+
+        let pvk = prepare_verifying_key::<Bls12_377>(&params.vk);
+
+        for _ in 0..100 {
+            let a = Fr::rand(rng);
+            let b = Fr::rand(rng);
+
+            let (proof, _) = create_random_proof(
+                MySillyCircuit {
+                    a: Some(a),
+                    b: Some(b),
+                },
+                &params,
+                rng,
+            )
+            .unwrap();
+
+            assert!(verify_proof(&pvk, &proof).unwrap());
         }
     }
 }
@@ -83,25 +113,26 @@ mod cp6_782 {
         create_random_proof, generate_random_parameters, prepare_verifying_key, verify_proof,
     };
 
+    use ark_cp6_782::{Fr, CP6_782};
     use ark_ff::{test_rng, UniformRand};
 
-    use ark_cp6_782::{Fr, CP6_782};
-
     #[test]
-    fn prove_and_verify() {
+    fn prove_and_verify_hiding() {
         let rng = &mut test_rng();
 
-        let params =
-            generate_random_parameters::<CP6_782, _, _>(MySillyCircuit { a: None, b: None }, rng)
-                .unwrap();
+        let params = generate_random_parameters::<CP6_782, _, _>(
+            MySillyCircuit { a: None, b: None },
+            true,
+            rng,
+        )
+        .unwrap();
 
         let pvk = prepare_verifying_key::<CP6_782>(&params.vk);
 
         let a = Fr::rand(rng);
         let b = Fr::rand(rng);
-        let c = a * &b;
 
-        let proof = create_random_proof(
+        let (proof, _) = create_random_proof(
             MySillyCircuit {
                 a: Some(a),
                 b: Some(b),
@@ -111,7 +142,35 @@ mod cp6_782 {
         )
         .unwrap();
 
-        assert!(verify_proof(&pvk, &proof, &[c]).unwrap());
-        assert!(!verify_proof(&pvk, &proof, &[Fr::zero()]).unwrap());
+        assert!(verify_proof(&pvk, &proof).unwrap());
+    }
+
+    #[test]
+    fn prove_and_verify_no_hiding() {
+        let rng = &mut test_rng();
+
+        let params = generate_random_parameters::<CP6_782, _, _>(
+            MySillyCircuit { a: None, b: None },
+            false,
+            rng,
+        )
+        .unwrap();
+
+        let pvk = prepare_verifying_key::<CP6_782>(&params.vk);
+
+        let a = Fr::rand(rng);
+        let b = Fr::rand(rng);
+
+        let (proof, _) = create_random_proof(
+            MySillyCircuit {
+                a: Some(a),
+                b: Some(b),
+            },
+            &params,
+            rng,
+        )
+        .unwrap();
+
+        assert!(verify_proof(&pvk, &proof).unwrap());
     }
 }

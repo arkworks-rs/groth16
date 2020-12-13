@@ -1,11 +1,12 @@
-use crate::{r1cs_to_qap::R1CStoQAP, Proof, ProvingKey};
+use crate::{r1cs_to_qap::R1CStoQAP, CommitRandomness, Proof, ProvingKey};
 use ark_ec::{msm::VariableBaseMSM, AffineCurve, PairingEngine, ProjectiveCurve};
 use ark_ff::{PrimeField, UniformRand, Zero};
 use ark_poly::GeneralEvaluationDomain;
 use ark_relations::r1cs::{ConstraintSynthesizer, ConstraintSystem, Result as R1CSResult};
-use ark_std::{cfg_into_iter, cfg_iter, vec::Vec};
+use ark_std::{cfg_into_iter, cfg_iter, ops::AddAssign, vec::Vec};
 use rand::Rng;
 
+use crate::augmented_qap::AugmentedQAP;
 #[cfg(feature = "parallel")]
 use rayon::prelude::*;
 
@@ -16,7 +17,7 @@ pub fn create_random_proof<E, C, R>(
     circuit: C,
     pk: &ProvingKey<E>,
     rng: &mut R,
-) -> R1CSResult<Proof<E>>
+) -> R1CSResult<(Proof<E>, CommitRandomness<E::Fr>)>
 where
     E: PairingEngine,
     C: ConstraintSynthesizer<E::Fr>,
@@ -24,18 +25,14 @@ where
 {
     let r = E::Fr::rand(rng);
     let s = E::Fr::rand(rng);
+    let v = if pk.ita_div_by_gamma_g1.is_some() {
+        Some(E::Fr::rand(rng))
+    } else {
+        None
+    };
 
-    create_proof::<E, C>(circuit, pk, r, s)
-}
-
-/// Create a Groth16 proof that is *not* zero-knowledge.
-#[inline]
-pub fn create_proof_no_zk<E, C>(circuit: C, pk: &ProvingKey<E>) -> R1CSResult<Proof<E>>
-where
-    E: PairingEngine,
-    C: ConstraintSynthesizer<E::Fr>,
-{
-    create_proof::<E, C>(circuit, pk, E::Fr::zero(), E::Fr::zero())
+    let proof = create_proof::<E, C>(circuit, pk, r, s, v.clone())?;
+    Ok((proof, v))
 }
 
 /// Create a Groth16 proof using randomness `r` and `s`.
@@ -45,6 +42,7 @@ pub fn create_proof<E, C>(
     pk: &ProvingKey<E>,
     r: E::Fr,
     s: E::Fr,
+    v: Option<E::Fr>,
 ) -> R1CSResult<Proof<E>>
 where
     E: PairingEngine,
@@ -60,6 +58,9 @@ where
     circuit.generate_constraints(cs.clone())?;
     debug_assert!(cs.is_satisfied().unwrap());
     end_timer!(synthesis_time);
+
+    // Augment the constraint system
+    AugmentedQAP::augment(cs.clone())?;
 
     let lc_time = start_timer!(|| "Inlining LCs");
     cs.inline_all_lcs();
@@ -133,7 +134,29 @@ where
     g_c -= &r_s_delta_g1;
     g_c += &l_aux_acc;
     g_c += &h_acc;
+    if v.is_some() {
+        g_c -= &pk
+            .ita_div_by_delta_g1
+            .unwrap()
+            .into_projective()
+            .mul(v.clone().unwrap().into());
+    }
     end_timer!(c_time);
+
+    let d_time = start_timer!(|| "Compute D");
+    let mut g_d = pk.gamma_abc_g1[0].into_projective();
+    for (i, b) in input_assignment.iter().zip(pk.gamma_abc_g1.iter().skip(1)) {
+        g_d.add_assign(&b.mul(*i));
+    }
+    if v.is_some() {
+        g_d.add_assign(
+            &pk.ita_div_by_gamma_g1
+                .unwrap()
+                .into_projective()
+                .mul(v.clone().unwrap().into()),
+        );
+    }
+    end_timer!(d_time);
 
     end_timer!(prover_time);
 
@@ -141,6 +164,7 @@ where
         a: g_a.into_affine(),
         b: g2_b.into_affine(),
         c: g_c.into_affine(),
+        d: g_d.into_affine(),
     })
 }
 

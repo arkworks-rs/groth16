@@ -15,6 +15,8 @@ pub struct Proof<E: PairingEngine> {
     pub b: E::G2Affine,
     /// The `C` element in `G1`.
     pub c: E::G1Affine,
+    /// The `D` element in `G1`.
+    pub d: E::G1Affine,
 }
 
 impl<E: PairingEngine> ToBytes for Proof<E> {
@@ -22,7 +24,8 @@ impl<E: PairingEngine> ToBytes for Proof<E> {
     fn write<W: Write>(&self, mut writer: W) -> io::Result<()> {
         self.a.write(&mut writer)?;
         self.b.write(&mut writer)?;
-        self.c.write(&mut writer)
+        self.c.write(&mut writer)?;
+        self.d.write(&mut writer)
     }
 }
 
@@ -32,6 +35,7 @@ impl<E: PairingEngine> Default for Proof<E> {
             a: E::G1Affine::default(),
             b: E::G2Affine::default(),
             c: E::G1Affine::default(),
+            d: E::G1Affine::default(),
         }
     }
 }
@@ -50,8 +54,10 @@ pub struct VerifyingKey<E: PairingEngine> {
     pub gamma_g2: E::G2Affine,
     /// The `delta * H`, where `H` is the generator of `E::G2`.
     pub delta_g2: E::G2Affine,
-    /// The `gamma^{-1} * (alpha * a_i + beta * b_i + c_i) * H`, where `H` is the generator of `E::G1`.
+    /// The `gamma^{-1} * (beta * a_i + alpha * b_i + c_i) * H`, where `H` is the generator of `E::G1`.
     pub gamma_abc_g1: Vec<E::G1Affine>,
+    /// The element `ita / gamma` in `E::G1`, used for commit-carrying.
+    pub ita_div_by_gamma_g1: Option<E::G1Affine>,
 }
 
 impl<E: PairingEngine> ToBytes for VerifyingKey<E> {
@@ -62,6 +68,10 @@ impl<E: PairingEngine> ToBytes for VerifyingKey<E> {
         self.delta_g2.write(&mut writer)?;
         for q in &self.gamma_abc_g1 {
             q.write(&mut writer)?;
+        }
+        self.ita_div_by_gamma_g1.is_some().write(&mut writer)?;
+        if self.ita_div_by_gamma_g1.is_some() {
+            self.ita_div_by_gamma_g1.write(&mut writer)?;
         }
         Ok(())
     }
@@ -75,6 +85,7 @@ impl<E: PairingEngine> Default for VerifyingKey<E> {
             gamma_g2: E::G2Affine::default(),
             delta_g2: E::G2Affine::default(),
             gamma_abc_g1: Vec::new(),
+            ita_div_by_gamma_g1: None,
         }
     }
 }
@@ -148,4 +159,12 @@ pub struct ProvingKey<E: PairingEngine> {
     pub h_query: Vec<E::G1Affine>,
     /// The elements `l_i * G` in `E::G1`.
     pub l_query: Vec<E::G1Affine>,
+
+    /// The element `ita / delta` in `E::G1`, used for commit-carrying.
+    pub ita_div_by_delta_g1: Option<E::G1Affine>,
+    /// The element `ita / gamma` in `E::G1`, used for commit-carrying.
+    pub ita_div_by_gamma_g1: Option<E::G1Affine>,
+    /// The `gamma^{-1} * (beta * a_i + alpha * b_i + c_i) * H`, where `H` is the generator of `E::G1`,
+    /// used for commit-carrying
+    pub gamma_abc_g1: Vec<E::G1Affine>,
 }

@@ -22,8 +22,6 @@ ark-poly = { git = "https://github.com/arkworks-rs/algebra", default-features = 
 ark-std = { git = "https://github.com/arkworks-rs/utils", default-features = false }
 bench-utils = { git = "https://github.com/arkworks-rs/utils" }
 ark-relations = { git = "https://github.com/arkworks-rs/snark", default-features = false }
-ark-crypto-primitives = { git = "https://github.com/arkworks-rs/crypto-primitives.git", branch = "main", default-features = false }
-ark-r1cs-std = { git = "https://github.com/arkworks-rs/r1cs-std", default-features = false, optional = true }
 
 tracing = { version = "0.1", default-features = false, features = [ "attributes" ], optional = true }
 derivative = { version = "2.0", features = ["use_core"], optional = true}
@@ -43,23 +41,12 @@ ark-mnt6-753 = { git = "https://github.com/arkworks-rs/curves", default-features
 
 [features]
 default = ["parallel"]
-std = ["ark-ff/std", "ark-ec/std", "ark-poly/std", "ark-relations/std", "ark-crypto-primitives/std", "ark-std/std" ]
-parallel = ["std", "ark-ff/parallel", "ark-poly/parallel", "ark-ec/parallel", "ark-crypto-primitives/parallel", "ark-std/parallel", "rayon"]
-r1cs = [ "ark-crypto-primitives/r1cs", "ark-r1cs-std", "tracing", "derivative" ]
+std = ["ark-ff/std", "ark-ec/std", "ark-poly/std", "ark-relations/std", "ark-std/std" ]
+parallel = ["std", "ark-ff/parallel", "ark-poly/parallel", "ark-ec/parallel", "ark-std/parallel", "rayon"]
 print-trace = [ "bench-utils/print-trace" ]
-
-[[example]]
-name = "groth16"
-path = "examples/snark-scalability/groth16.rs"
-required-features = ["std"]
 
 [[bench]]
 name = "groth16-benches"
 path = "benches/bench.rs"
 harness = false
 required-features = ["std"]
-
-# [[example]]
-# name = "groth16-recursive"
-# path = "examples/recursive-snark/groth16.rs"
-# required-features = ["std"]

@@ -3,7 +3,6 @@
 // where N is the number of threads you want to use (N = 1 for single-thread).
 
 use ark_bls12_381::{Bls12_381, Fr as BlsFr};
-use ark_crypto_primitives::SNARK;
 use ark_ff::{PrimeField, UniformRand};
 use ark_groth16::Groth16;
 use ark_mnt4_298::{Fr as MNT4Fr, MNT4_298};
@@ -14,7 +13,6 @@ use ark_relations::{
     lc,
     r1cs::{ConstraintSynthesizer, ConstraintSystemRef, SynthesisError},
 };
-use ark_std::ops::Mul;
 
 const NUM_PROVE_REPEATITIONS: usize = 10;
 const NUM_VERIFY_REPEATITIONS: usize = 50;
@@ -63,7 +61,7 @@ impl<F: PrimeField> ConstraintSynthesizer<F> for DummyCircuit<F> {
     }
 }
 
-macro_rules! groth16_prove_bench {
+macro_rules! groth16_prove_bench_hiding {
     ($bench_name:ident, $bench_field:ty, $bench_pairing_engine:ty) => {
         let rng = &mut ark_ff::test_rng();
         let c = DummyCircuit::<$bench_field> {
@@ -73,7 +71,8 @@ macro_rules! groth16_prove_bench {
             num_constraints: 65536,
         };
 
-        let (pk, _) = Groth16::<$bench_pairing_engine>::circuit_specific_setup(c, rng).unwrap();
+        let (pk, _) =
+            Groth16::<$bench_pairing_engine>::circuit_specific_setup(c, true, rng).unwrap();
 
         let start = ark_std::time::Instant::now();
 
@@ -82,14 +81,14 @@ macro_rules! groth16_prove_bench {
         }
 
         println!(
-            "per-constraint proving time for {}: {} ns/constraint",
+            "[commit-hiding] per-constraint proving time for {}: {} ns/constraint",
             stringify!($bench_pairing_engine),
             start.elapsed().as_nanos() / NUM_PROVE_REPEATITIONS as u128 / 65536u128
         );
     };
 }
 
-macro_rules! groth16_verify_bench {
+macro_rules! groth16_prove_bench_no_hiding {
     ($bench_name:ident, $bench_field:ty, $bench_pairing_engine:ty) => {
         let rng = &mut ark_ff::test_rng();
         let c = DummyCircuit::<$bench_field> {
@@ -99,42 +98,115 @@ macro_rules! groth16_verify_bench {
             num_constraints: 65536,
         };
 
-        let (pk, vk) = Groth16::<$bench_pairing_engine>::circuit_specific_setup(c, rng).unwrap();
-        let proof = Groth16::<$bench_pairing_engine>::prove(&pk, c.clone(), rng).unwrap();
+        let (pk, _) =
+            Groth16::<$bench_pairing_engine>::circuit_specific_setup(c, false, rng).unwrap();
 
-        let v = c.a.unwrap().mul(c.b.unwrap());
+        let start = ark_std::time::Instant::now();
+
+        for _ in 0..NUM_PROVE_REPEATITIONS {
+            let _ = Groth16::<$bench_pairing_engine>::prove(&pk, c.clone(), rng).unwrap();
+        }
+
+        println!(
+            "[commit-not-hiding] per-constraint proving time for {}: {} ns/constraint",
+            stringify!($bench_pairing_engine),
+            start.elapsed().as_nanos() / NUM_PROVE_REPEATITIONS as u128 / 65536u128
+        );
+    };
+}
+
+macro_rules! groth16_verify_bench_hiding {
+    ($bench_name:ident, $bench_field:ty, $bench_pairing_engine:ty) => {
+        let rng = &mut ark_ff::test_rng();
+        let c = DummyCircuit::<$bench_field> {
+            a: Some(<$bench_field>::rand(rng)),
+            b: Some(<$bench_field>::rand(rng)),
+            num_variables: 10,
+            num_constraints: 65536,
+        };
+
+        let (pk, vk) =
+            Groth16::<$bench_pairing_engine>::circuit_specific_setup(c, true, rng).unwrap();
+        let (proof, _) = Groth16::<$bench_pairing_engine>::prove(&pk, c.clone(), rng).unwrap();
 
         let start = ark_std::time::Instant::now();
 
         for _ in 0..NUM_VERIFY_REPEATITIONS {
-            let _ = Groth16::<$bench_pairing_engine>::verify(&vk, &vec![v], &proof).unwrap();
+            let _ = Groth16::<$bench_pairing_engine>::verify(&vk, &proof).unwrap();
         }
 
         println!(
-            "verifying time for {}: {} ns",
+            "[commit-hiding] verifying time for {}: {} ns",
             stringify!($bench_pairing_engine),
             start.elapsed().as_nanos() / NUM_VERIFY_REPEATITIONS as u128
         );
     };
 }
 
-fn bench_prove() {
-    groth16_prove_bench!(bls, BlsFr, Bls12_381);
-    groth16_prove_bench!(mnt4, MNT4Fr, MNT4_298);
-    groth16_prove_bench!(mnt6, MNT6Fr, MNT6_298);
-    groth16_prove_bench!(mnt4big, MNT4BigFr, MNT4_753);
-    groth16_prove_bench!(mnt6big, MNT6BigFr, MNT6_753);
+macro_rules! groth16_verify_bench_no_hiding {
+    ($bench_name:ident, $bench_field:ty, $bench_pairing_engine:ty) => {
+        let rng = &mut ark_ff::test_rng();
+        let c = DummyCircuit::<$bench_field> {
+            a: Some(<$bench_field>::rand(rng)),
+            b: Some(<$bench_field>::rand(rng)),
+            num_variables: 10,
+            num_constraints: 65536,
+        };
+
+        let (pk, vk) =
+            Groth16::<$bench_pairing_engine>::circuit_specific_setup(c, false, rng).unwrap();
+        let (proof, _) = Groth16::<$bench_pairing_engine>::prove(&pk, c.clone(), rng).unwrap();
+
+        let start = ark_std::time::Instant::now();
+
+        for _ in 0..NUM_VERIFY_REPEATITIONS {
+            let _ = Groth16::<$bench_pairing_engine>::verify(&vk, &proof).unwrap();
+        }
+
+        println!(
+            "[commit-not-hiding] verifying time for {}: {} ns",
+            stringify!($bench_pairing_engine),
+            start.elapsed().as_nanos() / NUM_VERIFY_REPEATITIONS as u128
+        );
+    };
 }
 
-fn bench_verify() {
-    groth16_verify_bench!(bls, BlsFr, Bls12_381);
-    groth16_verify_bench!(mnt4, MNT4Fr, MNT4_298);
-    groth16_verify_bench!(mnt6, MNT6Fr, MNT6_298);
-    groth16_verify_bench!(mnt4big, MNT4BigFr, MNT4_753);
-    groth16_verify_bench!(mnt6big, MNT6BigFr, MNT6_753);
+fn bench_prove_hiding() {
+    groth16_prove_bench_hiding!(bls, BlsFr, Bls12_381);
+    groth16_prove_bench_hiding!(mnt4, MNT4Fr, MNT4_298);
+    groth16_prove_bench_hiding!(mnt6, MNT6Fr, MNT6_298);
+    groth16_prove_bench_hiding!(mnt4big, MNT4BigFr, MNT4_753);
+    groth16_prove_bench_hiding!(mnt6big, MNT6BigFr, MNT6_753);
+}
+
+fn bench_verify_hiding() {
+    groth16_verify_bench_hiding!(bls, BlsFr, Bls12_381);
+    groth16_verify_bench_hiding!(mnt4, MNT4Fr, MNT4_298);
+    groth16_verify_bench_hiding!(mnt6, MNT6Fr, MNT6_298);
+    groth16_verify_bench_hiding!(mnt4big, MNT4BigFr, MNT4_753);
+    groth16_verify_bench_hiding!(mnt6big, MNT6BigFr, MNT6_753);
+}
+
+fn bench_prove_no_hiding() {
+    groth16_prove_bench_no_hiding!(bls, BlsFr, Bls12_381);
+    groth16_prove_bench_no_hiding!(mnt4, MNT4Fr, MNT4_298);
+    groth16_prove_bench_no_hiding!(mnt6, MNT6Fr, MNT6_298);
+    groth16_prove_bench_no_hiding!(mnt4big, MNT4BigFr, MNT4_753);
+    groth16_prove_bench_no_hiding!(mnt6big, MNT6BigFr, MNT6_753);
+}
+
+fn bench_verify_no_hiding() {
+    groth16_verify_bench_no_hiding!(bls, BlsFr, Bls12_381);
+    groth16_verify_bench_no_hiding!(mnt4, MNT4Fr, MNT4_298);
+    groth16_verify_bench_no_hiding!(mnt6, MNT6Fr, MNT6_298);
+    groth16_verify_bench_no_hiding!(mnt4big, MNT4BigFr, MNT4_753);
+    groth16_verify_bench_no_hiding!(mnt6big, MNT6BigFr, MNT6_753);
 }
 
 fn main() {
-    bench_prove();
-    bench_verify();
+    bench_prove_hiding();
+    bench_verify_hiding();
+
+    bench_prove_no_hiding();
+    bench_verify_no_hiding();
 }

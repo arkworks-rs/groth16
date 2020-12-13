@@ -23,6 +23,9 @@ extern crate derivative;
 /// Reduce an R1CS instance to a *Quadratic Arithmetic Program* instance.
 pub(crate) mod r1cs_to_qap;
 
+/// Padding the R1CS instance to enable an *Augmented Quadratic Arithmetic Program* instance.
+pub(crate) mod augmented_qap;
+
 /// Data structures used by the prover, verifier, and generator.
 pub mod data_structures;
 
@@ -35,17 +38,12 @@ pub mod prover;
 /// Verify proofs for the Groth16 zkSNARK construction.
 pub mod verifier;
 
-/// Constraints for the Groth16 verifier.
-#[cfg(feature = "r1cs")]
-pub mod constraints;
-
 #[cfg(test)]
 mod test;
 
 pub use self::data_structures::*;
 pub use self::{generator::*, prover::*, verifier::*};
 
-use ark_crypto_primitives::snark::*;
 use ark_ec::PairingEngine;
 use ark_relations::r1cs::{ConstraintSynthesizer, SynthesisError};
 use ark_std::{marker::PhantomData, vec::Vec};
@@ -56,44 +54,49 @@ pub struct Groth16<E: PairingEngine> {
     e_phantom: PhantomData<E>,
 }
 
-impl<E: PairingEngine> SNARK<E::Fr> for Groth16<E> {
-    type ProvingKey = ProvingKey<E>;
-    type VerifyingKey = VerifyingKey<E>;
-    type Proof = Proof<E>;
-    type ProcessedVerifyingKey = PreparedVerifyingKey<E>;
-    type Error = SynthesisError;
+/// Define the randomness used in commitments.
+pub type CommitRandomness<F> = Option<F>;
 
-    fn circuit_specific_setup<C: ConstraintSynthesizer<E::Fr>, R: RngCore>(
+impl<E: PairingEngine> Groth16<E> {
+    /// Do a circuit-specific setup
+    pub fn circuit_specific_setup<C: ConstraintSynthesizer<E::Fr>, R: RngCore>(
         circuit: C,
+        hiding: bool,
         rng: &mut R,
-    ) -> Result<(Self::ProvingKey, Self::VerifyingKey), Self::Error> {
-        let pk = generate_random_parameters::<E, C, R>(circuit, rng)?;
+    ) -> Result<(ProvingKey<E>, VerifyingKey<E>), SynthesisError> {
+        let pk = generate_random_parameters::<E, C, R>(circuit, hiding, rng)?;
         let vk = pk.vk.clone();
 
         Ok((pk, vk))
     }
 
-    fn prove<C: ConstraintSynthesizer<E::Fr>, R: RngCore>(
-        pk: &Self::ProvingKey,
+    /// Compute a proof
+    pub fn prove<C: ConstraintSynthesizer<E::Fr>, R: RngCore>(
+        pk: &ProvingKey<E>,
         circuit: C,
         rng: &mut R,
-    ) -> Result<Self::Proof, Self::Error> {
+    ) -> Result<(Proof<E>, CommitRandomness<E::Fr>), SynthesisError> {
         create_random_proof::<E, _, _>(circuit, pk, rng)
     }
 
-    fn process_vk(
-        circuit_vk: &Self::VerifyingKey,
-    ) -> Result<Self::ProcessedVerifyingKey, Self::Error> {
+    /// Process the verifying key
+    pub fn process_vk(
+        circuit_vk: &VerifyingKey<E>,
+    ) -> Result<PreparedVerifyingKey<E>, SynthesisError> {
         Ok(prepare_verifying_key(circuit_vk))
     }
 
-    fn verify_with_processed_vk(
-        circuit_pvk: &Self::ProcessedVerifyingKey,
-        x: &[E::Fr],
-        proof: &Self::Proof,
-    ) -> Result<bool, Self::Error> {
-        Ok(verify_proof(&circuit_pvk, proof, &x)?)
+    /// Verify the proof with a processed verifying key
+    pub fn verify_with_processed_vk(
+        circuit_pvk: &PreparedVerifyingKey<E>,
+        proof: &Proof<E>,
+    ) -> Result<bool, SynthesisError> {
+        Ok(verify_proof(&circuit_pvk, proof)?)
+    }
+
+    /// Verify the proof with a verifying key
+    pub fn verify(circuit_vk: &VerifyingKey<E>, proof: &Proof<E>) -> Result<bool, SynthesisError> {
+        let pvk = Self::process_vk(circuit_vk)?;
+        Ok(Self::verify_with_processed_vk(&pvk, proof)?)
     }
 }
-
-impl<E: PairingEngine> CircuitSpecificSetupSNARK<E::Fr> for Groth16<E> {}

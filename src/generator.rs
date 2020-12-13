@@ -8,13 +8,18 @@ use ark_relations::r1cs::{
 use ark_std::{cfg_into_iter, cfg_iter};
 use rand::Rng;
 
+use crate::augmented_qap::AugmentedQAP;
 #[cfg(feature = "parallel")]
 use rayon::prelude::*;
 
 /// Generates a random common reference string for
 /// a circuit.
 #[inline]
-pub fn generate_random_parameters<E, C, R>(circuit: C, rng: &mut R) -> R1CSResult<ProvingKey<E>>
+pub fn generate_random_parameters<E, C, R>(
+    circuit: C,
+    hiding: bool,
+    rng: &mut R,
+) -> R1CSResult<ProvingKey<E>>
 where
     E: PairingEngine,
     C: ConstraintSynthesizer<E::Fr>,
@@ -25,23 +30,6 @@ where
     let gamma = E::Fr::rand(rng);
     let delta = E::Fr::rand(rng);
 
-    generate_parameters::<E, C, R>(circuit, alpha, beta, gamma, delta, rng)
-}
-
-/// Create parameters for a circuit, given some toxic waste.
-pub fn generate_parameters<E, C, R>(
-    circuit: C,
-    alpha: E::Fr,
-    beta: E::Fr,
-    gamma: E::Fr,
-    delta: E::Fr,
-    rng: &mut R,
-) -> R1CSResult<ProvingKey<E>>
-where
-    E: PairingEngine,
-    C: ConstraintSynthesizer<E::Fr>,
-    R: Rng,
-{
     type D<F> = GeneralEvaluationDomain<F>;
 
     let setup_time = start_timer!(|| "Groth16::Generator");
@@ -52,6 +40,9 @@ where
     let synthesis_time = start_timer!(|| "Constraint synthesis");
     circuit.generate_constraints(cs.clone())?;
     end_timer!(synthesis_time);
+
+    // Augment the constraint system
+    AugmentedQAP::augment(cs.clone())?;
 
     let lc_time = start_timer!(|| "Inlining LCs");
     cs.inline_all_lcs();
@@ -173,11 +164,27 @@ where
     drop(l);
     end_timer!(l_time);
 
-    end_timer!(proving_key_time);
+    let commit_carrying_time = start_timer!(|| "Generate parameters for commit-carrying");
+    /* ita is used by commit-carrying */
+    let (ita_div_by_delta_g1, ita_div_by_gamma_g1) = if hiding {
+        let ita = E::Fr::rand(rng);
+        let ita_div_by_delta_g1 = Some(
+            g1_generator
+                .mul((ita * &delta_inverse).into())
+                .into_affine(),
+        );
+        let ita_div_by_gamma_g1 = Some(
+            g1_generator
+                .mul((ita * &gamma_inverse).into())
+                .into_affine(),
+        );
 
-    // Generate R1CS verification key
-    let verifying_key_time = start_timer!(|| "Generate the R1CS verification key");
-    let gamma_g2 = g2_generator.mul(gamma.into());
+        (ita_div_by_delta_g1, ita_div_by_gamma_g1)
+    } else {
+        (None, None)
+    };
+
+    // Compute gamma_abc_g1, used for commit-carrying
     let gamma_abc_g1 = FixedBaseMSM::multi_scalar_mul::<E::G1Projective>(
         scalar_bits,
         g1_window,
@@ -185,6 +192,14 @@ where
         &gamma_abc,
     );
 
+    let gamma_abc_g1_affine = E::G1Projective::batch_normalization_into_affine(&gamma_abc_g1);
+    end_timer!(commit_carrying_time);
+
+    end_timer!(proving_key_time);
+
+    // Generate R1CS verification key
+    let verifying_key_time = start_timer!(|| "Generate the R1CS verification key");
+    let gamma_g2 = g2_generator.mul(gamma.into());
     drop(g1_table);
 
     end_timer!(verifying_key_time);
@@ -194,7 +209,8 @@ where
         beta_g2: beta_g2.into_affine(),
         gamma_g2: gamma_g2.into_affine(),
         delta_g2: delta_g2.into_affine(),
-        gamma_abc_g1: E::G1Projective::batch_normalization_into_affine(&gamma_abc_g1),
+        gamma_abc_g1: gamma_abc_g1_affine.clone(),
+        ita_div_by_gamma_g1: ita_div_by_gamma_g1.clone(),
     };
 
     let batch_normalization_time = start_timer!(|| "Convert proving key elements to affine");
@@ -215,5 +231,8 @@ where
         b_g2_query,
         h_query,
         l_query,
+        ita_div_by_delta_g1,
+        ita_div_by_gamma_g1,
+        gamma_abc_g1: gamma_abc_g1_affine,
     })
 }

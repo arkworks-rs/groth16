@@ -1,11 +1,8 @@
-use ark_ec::{AffineCurve, PairingEngine, ProjectiveCurve};
-use ark_ff::PrimeField;
-
 use super::{PreparedVerifyingKey, Proof, VerifyingKey};
+use ark_ec::PairingEngine;
 
 use ark_relations::r1cs::{Result as R1CSResult, SynthesisError};
-
-use core::ops::{AddAssign, Neg};
+use ark_std::ops::Neg;
 
 /// Prepare the verifying key `vk` for use in proof verification.
 pub fn prepare_verifying_key<E: PairingEngine>(vk: &VerifyingKey<E>) -> PreparedVerifyingKey<E> {
@@ -22,21 +19,11 @@ pub fn prepare_verifying_key<E: PairingEngine>(vk: &VerifyingKey<E>) -> Prepared
 pub fn verify_proof<E: PairingEngine>(
     pvk: &PreparedVerifyingKey<E>,
     proof: &Proof<E>,
-    public_inputs: &[E::Fr],
 ) -> R1CSResult<bool> {
-    if (public_inputs.len() + 1) != pvk.vk.gamma_abc_g1.len() {
-        return Err(SynthesisError::MalformedVerifyingKey);
-    }
-
-    let mut g_ic = pvk.vk.gamma_abc_g1[0].into_projective();
-    for (i, b) in public_inputs.iter().zip(pvk.vk.gamma_abc_g1.iter().skip(1)) {
-        g_ic.add_assign(&b.mul(i.into_repr()));
-    }
-
     let qap = E::miller_loop(
         [
             (proof.a.into(), proof.b.into()),
-            (g_ic.into_affine().into(), pvk.gamma_g2_neg_pc.clone()),
+            (proof.d.into(), pvk.gamma_g2_neg_pc.clone()),
             (proof.c.into(), pvk.delta_g2_neg_pc.clone()),
         ]
         .iter(),
