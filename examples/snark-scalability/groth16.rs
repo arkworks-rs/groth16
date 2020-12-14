@@ -28,7 +28,8 @@
 use csv;
 
 // For randomness (during paramgen and proof generation)
-use ark_ff::{test_rng, One};
+use ark_ff::One;
+use ark_std::test_rng;
 
 // For benchmarking
 use std::{

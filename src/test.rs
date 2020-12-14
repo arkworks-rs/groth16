@@ -40,7 +40,7 @@ mod bls12_377 {
     use crate::{
         create_random_proof, generate_random_parameters, prepare_verifying_key, verify_proof,
     };
-    use ark_ff::{test_rng, UniformRand};
+    use ark_std::{test_rng, UniformRand};
 
     use ark_bls12_377::{Bls12_377, Fr};
     use core::ops::MulAssign;
@@ -83,7 +83,7 @@ mod cp6_782 {
         create_random_proof, generate_random_parameters, prepare_verifying_key, verify_proof,
     };
 
-    use ark_ff::{test_rng, UniformRand};
+    use ark_std::{test_rng, UniformRand};
 
     use ark_cp6_782::{Fr, CP6_782};
 
