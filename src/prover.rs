@@ -1,6 +1,6 @@
-use crate::{r1cs_to_qap::R1CStoQAP, Proof, ProvingKey};
+use crate::{r1cs_to_qap::R1CStoQAP, Proof, ProvingKey, VerifyingKey};
 use ark_ec::{msm::VariableBaseMSM, AffineCurve, PairingEngine, ProjectiveCurve};
-use ark_ff::{PrimeField, UniformRand, Zero};
+use ark_ff::{Field, PrimeField, UniformRand, Zero};
 use ark_poly::GeneralEvaluationDomain;
 use ark_relations::r1cs::{ConstraintSynthesizer, ConstraintSystem, Result as R1CSResult};
 use ark_std::{cfg_into_iter, cfg_iter, vec::Vec};
@@ -142,6 +142,32 @@ where
         b: g2_b.into_affine(),
         c: g_c.into_affine(),
     })
+}
+
+/// Given a Groth16 proof, returns a proof of the same statement. The proof that is returned is
+/// computationally unlinkable to the given proof, assuming the RNG is cryptographically secure
+pub fn rerandomize_proof<E, R>(rng: &mut R, vk: &VerifyingKey<E>, proof: &Proof<E>) -> Proof<E>
+where
+    E: PairingEngine,
+    R: Rng,
+{
+    // These are our rerandomization factors
+    let (r, s) = (E::Fr::rand(rng), E::Fr::rand(rng));
+
+    // A' = rA
+    // B' = (1/r)B + s(δG₂)
+    // C' = C + rsA
+
+    let new_a = proof.a.mul(r);
+    // We can unwrap() this because r = 0 with negligible probability
+    let new_b = proof.b.mul(r.inverse().unwrap()) + &vk.delta_g2.mul(s);
+    let new_c = proof.c + proof.a.mul(r * &s).into_affine();
+
+    Proof {
+        a: new_a.into_affine(),
+        b: new_b.into_affine(),
+        c: new_c,
+    }
 }
 
 fn calculate_coeff<G: AffineCurve>(

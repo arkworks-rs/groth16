@@ -1,3 +1,13 @@
+use crate::{
+    create_random_proof, generate_random_parameters, prepare_verifying_key, rerandomize_proof,
+    verify_proof,
+};
+use ark_ec::PairingEngine;
+use ark_ff::UniformRand;
+use ark_std::test_rng;
+
+use core::ops::MulAssign;
+
 use ark_ff::{Field, Zero};
 use ark_relations::{
     lc,
@@ -35,71 +45,22 @@ impl<ConstraintF: Field> ConstraintSynthesizer<ConstraintF> for MySillyCircuit<C
     }
 }
 
-mod bls12_377 {
-    use super::*;
-    use crate::{
-        create_random_proof, generate_random_parameters, prepare_verifying_key, verify_proof,
-    };
-    use ark_std::{test_rng, UniformRand};
+fn test_prove_and_verify<E>(n_iters: usize)
+where
+    E: PairingEngine,
+{
+    let rng = &mut test_rng();
 
-    use ark_bls12_377::{Bls12_377, Fr};
-    use core::ops::MulAssign;
+    let params =
+        generate_random_parameters::<E, _, _>(MySillyCircuit { a: None, b: None }, rng).unwrap();
 
-    #[test]
-    fn prove_and_verify() {
-        let rng = &mut test_rng();
+    let pvk = prepare_verifying_key::<E>(&params.vk);
 
-        let params =
-            generate_random_parameters::<Bls12_377, _, _>(MySillyCircuit { a: None, b: None }, rng)
-                .unwrap();
-
-        let pvk = prepare_verifying_key::<Bls12_377>(&params.vk);
-
-        for _ in 0..100 {
-            let a = Fr::rand(rng);
-            let b = Fr::rand(rng);
-            let mut c = a;
-            c.mul_assign(&b);
-
-            let proof = create_random_proof(
-                MySillyCircuit {
-                    a: Some(a),
-                    b: Some(b),
-                },
-                &params,
-                rng,
-            )
-            .unwrap();
-
-            assert!(verify_proof(&pvk, &proof, &[c]).unwrap());
-            assert!(!verify_proof(&pvk, &proof, &[a]).unwrap());
-        }
-    }
-}
-
-mod cp6_782 {
-    use super::*;
-    use crate::{
-        create_random_proof, generate_random_parameters, prepare_verifying_key, verify_proof,
-    };
-
-    use ark_std::{test_rng, UniformRand};
-
-    use ark_cp6_782::{Fr, CP6_782};
-
-    #[test]
-    fn prove_and_verify() {
-        let rng = &mut test_rng();
-
-        let params =
-            generate_random_parameters::<CP6_782, _, _>(MySillyCircuit { a: None, b: None }, rng)
-                .unwrap();
-
-        let pvk = prepare_verifying_key::<CP6_782>(&params.vk);
-
-        let a = Fr::rand(rng);
-        let b = Fr::rand(rng);
-        let c = a * &b;
+    for _ in 0..n_iters {
+        let a = E::Fr::rand(rng);
+        let b = E::Fr::rand(rng);
+        let mut c = a;
+        c.mul_assign(&b);
 
         let proof = create_random_proof(
             MySillyCircuit {
@@ -112,6 +73,80 @@ mod cp6_782 {
         .unwrap();
 
         assert!(verify_proof(&pvk, &proof, &[c]).unwrap());
-        assert!(!verify_proof(&pvk, &proof, &[Fr::zero()]).unwrap());
+        assert!(!verify_proof(&pvk, &proof, &[a]).unwrap());
+    }
+}
+
+fn test_rerandomize<E>()
+where
+    E: PairingEngine,
+{
+    // First create an arbitrary Groth16 in the normal way
+
+    let rng = &mut test_rng();
+
+    let params =
+        generate_random_parameters::<E, _, _>(MySillyCircuit { a: None, b: None }, rng).unwrap();
+
+    let pvk = prepare_verifying_key::<E>(&params.vk);
+
+    let a = E::Fr::rand(rng);
+    let b = E::Fr::rand(rng);
+    let c = a * &b;
+
+    // Create the initial proof
+    let proof1 = create_random_proof(
+        MySillyCircuit {
+            a: Some(a),
+            b: Some(b),
+        },
+        &params,
+        rng,
+    )
+    .unwrap();
+
+    // Rerandomize the proof, then rerandomize that
+    let proof2 = rerandomize_proof(rng, &params.vk, &proof1);
+    let proof3 = rerandomize_proof(rng, &params.vk, &proof2);
+
+    // Check that the proofs are equivalent
+
+    assert!(verify_proof(&pvk, &proof1, &[c]).unwrap());
+    assert!(verify_proof(&pvk, &proof2, &[c]).unwrap());
+    assert!(verify_proof(&pvk, &proof3, &[c]).unwrap());
+
+    assert!(!verify_proof(&pvk, &proof1, &[E::Fr::zero()]).unwrap());
+    assert!(!verify_proof(&pvk, &proof2, &[E::Fr::zero()]).unwrap());
+    assert!(!verify_proof(&pvk, &proof3, &[E::Fr::zero()]).unwrap());
+}
+
+mod bls12_377 {
+    use super::{test_prove_and_verify, test_rerandomize};
+    use ark_bls12_377::Bls12_377;
+
+    #[test]
+    fn prove_and_verify() {
+        test_prove_and_verify::<Bls12_377>(100);
+    }
+
+    #[test]
+    fn rerandomize() {
+        test_rerandomize::<Bls12_377>();
+    }
+}
+
+mod cp6_782 {
+    use super::{test_prove_and_verify, test_rerandomize};
+
+    use ark_cp6_782::CP6_782;
+
+    #[test]
+    fn prove_and_verify() {
+        test_prove_and_verify::<CP6_782>(1);
+    }
+
+    #[test]
+    fn rerandomize() {
+        test_rerandomize::<CP6_782>();
     }
 }
