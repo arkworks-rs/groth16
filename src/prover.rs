@@ -144,24 +144,27 @@ where
     })
 }
 
-/// Given a Groth16 proof, returns a proof of the same statement. The proof that is returned is
-/// computationally unlinkable to the given proof, assuming the RNG is cryptographically secure
+/// Given a Groth16 proof, returns a fresh proof of the same statement. For a proof π of a
+/// statement S, the output of the non-deterministic procedure `rerandomize_proof(π)` is
+/// statistically indistinguishable from a fresh honest proof of S. For more info, see theorem 3 of
+/// BKSV20: https://eprint.iacr.org/2020/811
 pub fn rerandomize_proof<E, R>(rng: &mut R, vk: &VerifyingKey<E>, proof: &Proof<E>) -> Proof<E>
 where
     E: PairingEngine,
     R: Rng,
 {
     // These are our rerandomization factors
-    let (r, s) = (E::Fr::rand(rng), E::Fr::rand(rng));
+    let (r1, r2) = (E::Fr::rand(rng), E::Fr::rand(rng));
 
-    // A' = rA
-    // B' = (1/r)B + s(δG₂)
-    // C' = C + rsA
+    // See figure 1 in the paper referenced above:
+    //   A' = (1/r₁)A
+    //   B' = r₁B + r₁r₂(δG₂)
+    //   C' = C + r₂A
 
-    let new_a = proof.a.mul(r);
-    // We can unwrap() this because r = 0 with negligible probability
-    let new_b = proof.b.mul(r.inverse().unwrap()) + &vk.delta_g2.mul(s);
-    let new_c = proof.c + proof.a.mul(r * &s).into_affine();
+    // We can unwrap() this because r₁ = 0 with negligible probability
+    let new_a = proof.a.mul(r1.inverse().unwrap());
+    let new_b = proof.b.mul(r1) + &vk.delta_g2.mul(r1 * &r2);
+    let new_c = proof.c + proof.a.mul(r2).into_affine();
 
     Proof {
         a: new_a.into_affine(),
