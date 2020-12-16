@@ -153,7 +153,7 @@ where
     E: PairingEngine,
     R: Rng,
 {
-    // These are our rerandomization factors
+    // These are our rerandomization factors. They must be nonzero and uniformly sampled.
     let (mut r1, mut r2) = (E::Fr::zero(), E::Fr::zero());
     while r1.is_zero() || r2.is_zero() {
         r1 = E::Fr::rand(rng);
@@ -165,7 +165,7 @@ where
     //   B' = r₁B + r₁r₂(δG₂)
     //   C' = C + r₂A
 
-    // We can unwrap() this because r₁ = 0 with negligible probability
+    // We can unwrap() this because r₁ is guaranteed to be nonzero
     let new_a = proof.a.mul(r1.inverse().unwrap());
     let new_b = proof.b.mul(r1) + &vk.delta_g2.mul(r1 * &r2);
     let new_c = proof.c + proof.a.mul(r2).into_affine();
