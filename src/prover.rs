@@ -147,7 +147,7 @@ where
 /// Given a Groth16 proof, returns a fresh proof of the same statement. For a proof π of a
 /// statement S, the output of the non-deterministic procedure `rerandomize_proof(π)` is
 /// statistically indistinguishable from a fresh honest proof of S. For more info, see theorem 3 of
-/// BKSV20: https://eprint.iacr.org/2020/811
+/// [\[BKSV20\]](https://eprint.iacr.org/2020/811)
 pub fn rerandomize_proof<E, R>(rng: &mut R, vk: &VerifyingKey<E>, proof: &Proof<E>) -> Proof<E>
 where
     E: PairingEngine,
