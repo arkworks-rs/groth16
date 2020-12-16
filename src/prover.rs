@@ -1,6 +1,6 @@
-use crate::{r1cs_to_qap::R1CStoQAP, Proof, ProvingKey};
+use crate::{r1cs_to_qap::R1CStoQAP, Proof, ProvingKey, VerifyingKey};
 use ark_ec::{msm::VariableBaseMSM, AffineCurve, PairingEngine, ProjectiveCurve};
-use ark_ff::{PrimeField, UniformRand, Zero};
+use ark_ff::{Field, PrimeField, UniformRand, Zero};
 use ark_poly::GeneralEvaluationDomain;
 use ark_relations::r1cs::{ConstraintSynthesizer, ConstraintSystem, Result as R1CSResult};
 use ark_std::{cfg_into_iter, cfg_iter, vec::Vec};
@@ -142,6 +142,39 @@ where
         b: g2_b.into_affine(),
         c: g_c.into_affine(),
     })
+}
+
+/// Given a Groth16 proof, returns a fresh proof of the same statement. For a proof π of a
+/// statement S, the output of the non-deterministic procedure `rerandomize_proof(π)` is
+/// statistically indistinguishable from a fresh honest proof of S. For more info, see theorem 3 of
+/// [\[BKSV20\]](https://eprint.iacr.org/2020/811)
+pub fn rerandomize_proof<E, R>(rng: &mut R, vk: &VerifyingKey<E>, proof: &Proof<E>) -> Proof<E>
+where
+    E: PairingEngine,
+    R: Rng,
+{
+    // These are our rerandomization factors. They must be nonzero and uniformly sampled.
+    let (mut r1, mut r2) = (E::Fr::zero(), E::Fr::zero());
+    while r1.is_zero() || r2.is_zero() {
+        r1 = E::Fr::rand(rng);
+        r2 = E::Fr::rand(rng);
+    }
+
+    // See figure 1 in the paper referenced above:
+    //   A' = (1/r₁)A
+    //   B' = r₁B + r₁r₂(δG₂)
+    //   C' = C + r₂A
+
+    // We can unwrap() this because r₁ is guaranteed to be nonzero
+    let new_a = proof.a.mul(r1.inverse().unwrap());
+    let new_b = proof.b.mul(r1) + &vk.delta_g2.mul(r1 * &r2);
+    let new_c = proof.c + proof.a.mul(r2).into_affine();
+
+    Proof {
+        a: new_a.into_affine(),
+        b: new_b.into_affine(),
+        c: new_c,
+    }
 }
 
 fn calculate_coeff<G: AffineCurve>(
