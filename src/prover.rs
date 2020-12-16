@@ -156,8 +156,8 @@ where
     // These are our rerandomization factors
     let (mut r1, mut r2) = (E::Fr::zero(), E::Fr::zero());
     while r1.is_zero() || r2.is_zero() {
-    	r1 = E::Fr::rand(rng);
-    	r2 = E::Fr::rand(rng);
+        r1 = E::Fr::rand(rng);
+        r2 = E::Fr::rand(rng);
     }
 
     // See figure 1 in the paper referenced above:
