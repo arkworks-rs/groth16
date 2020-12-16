@@ -109,15 +109,20 @@ where
     let proof2 = rerandomize_proof(rng, &params.vk, &proof1);
     let proof3 = rerandomize_proof(rng, &params.vk, &proof2);
 
-    // Check that the proofs are equivalent
-
+    // Check correctness: a rerandomized proof validates when the original validates
     assert!(verify_proof(&pvk, &proof1, &[c]).unwrap());
     assert!(verify_proof(&pvk, &proof2, &[c]).unwrap());
     assert!(verify_proof(&pvk, &proof3, &[c]).unwrap());
 
+    // Check soundness: a rerandomized proof fails to validate when the original fails to validate
     assert!(!verify_proof(&pvk, &proof1, &[E::Fr::zero()]).unwrap());
     assert!(!verify_proof(&pvk, &proof2, &[E::Fr::zero()]).unwrap());
     assert!(!verify_proof(&pvk, &proof3, &[E::Fr::zero()]).unwrap());
+
+    // Check that the proofs are not equal as group elements
+    assert!(proof1 != proof2);
+    assert!(proof1 != proof3);
+    assert!(proof2 != proof3);
 }
 
 mod bls12_377 {
