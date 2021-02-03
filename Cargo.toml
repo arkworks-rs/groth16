@@ -41,6 +41,14 @@ ark-mnt6-298 = { git = "https://github.com/arkworks-rs/curves", default-features
 ark-mnt4-753 = { git = "https://github.com/arkworks-rs/curves", default-features = false, features = ["r1cs", "curve"] }
 ark-mnt6-753 = { git = "https://github.com/arkworks-rs/curves", default-features = false, features = ["r1cs"] }
 
+[profile.release]
+opt-level = 3
+panic = 'abort'
+
+[profile.dev]
+opt-level = 0
+panic = 'abort'
+
 [features]
 default = ["parallel"]
 std = ["ark-ff/std", "ark-ec/std", "ark-poly/std", "ark-relations/std", "ark-crypto-primitives/std", "ark-std/std" ]

@@ -16,6 +16,7 @@
 
 ### Bug fixes
 - [c9bc5519](https://github.com/arkworks-rs/groth16/commit/885b9b569522f59a7eb428d1095f442ec9bc5519) Fix parallel feature flag
+- #22 Compile with `panic='abort'` in release mode, for safety of the library across FFI boundaries.
 
 ## v0.1.0
 
