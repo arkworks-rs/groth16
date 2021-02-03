@@ -2,7 +2,9 @@ use crate::{r1cs_to_qap::R1CStoQAP, Proof, ProvingKey, VerifyingKey};
 use ark_ec::{msm::VariableBaseMSM, AffineCurve, PairingEngine, ProjectiveCurve};
 use ark_ff::{Field, PrimeField, UniformRand, Zero};
 use ark_poly::GeneralEvaluationDomain;
-use ark_relations::r1cs::{ConstraintSynthesizer, ConstraintSystem, Result as R1CSResult};
+use ark_relations::r1cs::{
+    ConstraintSynthesizer, ConstraintSystem, OptimizationGoal, Result as R1CSResult,
+};
 use ark_std::{cfg_into_iter, cfg_iter, vec::Vec};
 use rand::Rng;
 
@@ -55,6 +57,9 @@ where
     let prover_time = start_timer!(|| "Groth16::Prover");
     let cs = ConstraintSystem::new_ref();
 
+    // Set the optimization goal
+    cs.set_optimization_goal(OptimizationGoal::Constraints);
+
     // Synthesize the circuit.
     let synthesis_time = start_timer!(|| "Constraint synthesis");
     circuit.generate_constraints(cs.clone())?;
@@ -62,7 +67,7 @@ where
     end_timer!(synthesis_time);
 
     let lc_time = start_timer!(|| "Inlining LCs");
-    cs.inline_all_lcs();
+    cs.finalize();
     end_timer!(lc_time);
 
     let witness_map_time = start_timer!(|| "R1CS to QAP witness map");
