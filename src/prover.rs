@@ -5,8 +5,8 @@ use ark_poly::GeneralEvaluationDomain;
 use ark_relations::r1cs::{
     ConstraintSynthesizer, ConstraintSystem, OptimizationGoal, Result as R1CSResult,
 };
+use ark_std::rand::Rng;
 use ark_std::{cfg_into_iter, cfg_iter, vec::Vec};
-use rand::Rng;
 
 #[cfg(feature = "parallel")]
 use rayon::prelude::*;

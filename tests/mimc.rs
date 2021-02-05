@@ -11,7 +11,7 @@
 )]
 
 // For randomness (during paramgen and proof generation)
-use rand::Rng;
+use ark_std::rand::Rng;
 
 // For benchmarking
 use std::time::{Duration, Instant};
