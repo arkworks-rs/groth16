@@ -47,8 +47,8 @@ pub use self::{generator::*, prover::*, verifier::*};
 use ark_crypto_primitives::snark::*;
 use ark_ec::PairingEngine;
 use ark_relations::r1cs::{ConstraintSynthesizer, SynthesisError};
+use ark_std::rand::RngCore;
 use ark_std::{marker::PhantomData, vec::Vec};
-use rand::RngCore;
 
 /// The SNARK of [[Groth16]](https://eprint.iacr.org/2016/260.pdf).
 pub struct Groth16<E: PairingEngine> {
