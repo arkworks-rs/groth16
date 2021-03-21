@@ -5,6 +5,7 @@
 ### Breaking changes
 - #4 Change groth16's logic to implement the `SNARK` trait.
 - Minimum version on crates from `arkworks-rs/algebra` and `arkworks-rs/curves` is now `v0.2.0`
+- #24 Switch from `bench-utils` to `ark_std::perf_trace`
 
 ### Features
 - #5 Add R1CS constraints for the groth16 verifier.

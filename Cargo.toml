@@ -20,7 +20,6 @@ ark-ec = { git = "https://github.com/arkworks-rs/algebra", default-features = fa
 ark-serialize = { git = "https://github.com/arkworks-rs/algebra", default-features = false, features = [ "derive" ] }
 ark-poly = { git = "https://github.com/arkworks-rs/algebra", default-features = false }
 ark-std = { git = "https://github.com/arkworks-rs/utils", default-features = false }
-bench-utils = { git = "https://github.com/arkworks-rs/utils" }
 ark-relations = { git = "https://github.com/arkworks-rs/snark", default-features = false }
 ark-crypto-primitives = { git = "https://github.com/arkworks-rs/crypto-primitives.git", branch = "main", default-features = false }
 ark-r1cs-std = { git = "https://github.com/arkworks-rs/r1cs-std", default-features = false, optional = true }
@@ -53,7 +52,7 @@ default = ["parallel"]
 std = ["ark-ff/std", "ark-ec/std", "ark-poly/std", "ark-relations/std", "ark-crypto-primitives/std", "ark-std/std" ]
 parallel = ["std", "ark-ff/parallel", "ark-poly/parallel", "ark-ec/parallel", "ark-crypto-primitives/parallel", "ark-std/parallel", "rayon"]
 r1cs = [ "ark-crypto-primitives/r1cs", "ark-r1cs-std", "tracing", "derivative" ]
-print-trace = [ "bench-utils/print-trace" ]
+print-trace = [ "ark-std/print-trace" ]
 
 [[example]]
 name = "groth16"

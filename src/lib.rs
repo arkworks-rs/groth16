@@ -13,7 +13,7 @@
 #![forbid(unsafe_code)]
 
 #[macro_use]
-extern crate bench_utils;
+extern crate ark_std;
 
 #[cfg(feature = "r1cs")]
 #[macro_use]
