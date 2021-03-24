@@ -1,6 +1,4 @@
-# Sample changelog for maintainers
-
-## Pending
+## v0.2.0
 
 ### Breaking changes
 - [\#4](https://github.com/arkworks-rs/groth16/pull/4) Change groth16's logic to implement the `SNARK` trait.
