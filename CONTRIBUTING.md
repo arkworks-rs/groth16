@@ -1,6 +1,4 @@
 # Contributing
-# NOTE TO MAINTAINERS
-# REPLACE `groth16` AND master
 
 Thank you for considering making contributions to `arkworks-rs/groth16`!
 
