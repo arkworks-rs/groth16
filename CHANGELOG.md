@@ -1,3 +1,14 @@
+## Pending
+
+### Breaking changes
+- [\#21](https://github.com/arkworks-rs/groth16/pull/21) Change the `generate_parameters` interface to take generators as input.
+
+### Features
+
+### Improvements
+
+### Bug fixes
+
 ## v0.2.0
 
 ### Breaking changes
