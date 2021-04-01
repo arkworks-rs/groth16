@@ -26,16 +26,30 @@ where
     let gamma = E::Fr::rand(rng);
     let delta = E::Fr::rand(rng);
 
-    generate_parameters::<E, C, R>(circuit, alpha, beta, gamma, delta, rng)
+    let g1_generator = E::G1Projective::rand(rng);
+    let g2_generator = E::G2Projective::rand(rng);
+
+    generate_parameters::<E, C, R>(
+        circuit,
+        alpha,
+        beta,
+        gamma,
+        delta,
+        g1_generator,
+        g2_generator,
+        rng,
+    )
 }
 
-/// Create parameters for a circuit, given some toxic waste.
+/// Create parameters for a circuit, given some toxic waste and group generators
 pub fn generate_parameters<E, C, R>(
     circuit: C,
     alpha: E::Fr,
     beta: E::Fr,
     gamma: E::Fr,
     delta: E::Fr,
+    g1_generator: E::G1Projective,
+    g2_generator: E::G2Projective,
     rng: &mut R,
 ) -> R1CSResult<ProvingKey<E>>
 where
@@ -102,9 +116,6 @@ where
         .collect::<Vec<_>>();
 
     drop(c);
-
-    let g1_generator = E::G1Projective::rand(rng);
-    let g2_generator = E::G2Projective::rand(rng);
 
     // Compute B window table
     let g2_time = start_timer!(|| "Compute G2 table");
