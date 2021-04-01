@@ -1,3 +1,14 @@
+## Pending
+
+### Breaking changes
+- [\#21] `generate_parameters` now takes generators as input
+
+### Features
+
+### Improvements
+
+### Bug fixes
+
 ## v0.2.0
 
 ### Breaking changes
