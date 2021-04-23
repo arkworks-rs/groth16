@@ -27,9 +27,8 @@ use std::{
 use ark_bls12_377::{Bls12_377, Fr};
 
 // We're going to use the Groth 16 proving system.
-use ark_groth16::{
-    create_random_proof, generate_random_parameters, prepare_verifying_key, verify_proof,
-};
+use ark_groth16::Groth16;
+use ark_snark::r1cs::{SNARKForR1CS, SNARK};
 
 use std::{env, fs::OpenOptions, path::PathBuf, process};
 
@@ -82,13 +81,13 @@ fn main() -> Result<(), Box<dyn Error>> {
     for _ in 0..samples {
         // Create parameters for our circuit
         let start = Instant::now();
-        let params = {
+        let (pk, vk) = {
             let c = Benchmark::<Fr>::new(num_constraints);
-            generate_random_parameters::<Bls12_377, _, _>(c, rng)?
+            Groth16::circuit_specific_setup_with_cs::<Bls12_377, _, _>(&c, rng)?
         };
 
         // Prepare the verification key (for proof verification)
-        let pvk = prepare_verifying_key(&params.vk);
+        let pvk = Groth16::process_vk(&vk);
         total_setup += start.elapsed();
 
         // proof_vec.truncate(0);
@@ -97,7 +96,7 @@ fn main() -> Result<(), Box<dyn Error>> {
             // Create an instance of our circuit (with the witness)
             let c = Benchmark::new(num_constraints);
             // Create a proof with our parameters.
-            create_random_proof(c, &params, rng)?
+            Groth16::prove(&pk, &c, rng)?
         };
 
         total_proving += start.elapsed();
@@ -107,7 +106,7 @@ fn main() -> Result<(), Box<dyn Error>> {
         let start = Instant::now();
         // let proof = Proof::read(&proof_vec[..]).unwrap();
         // Check the proof
-        let r = verify_proof(&pvk, &proof, &inputs).unwrap();
+        let r = Groth16::verify_with_cs_and_processed_vk(&pvk, &c, &proof).unwrap();
         assert!(r);
         total_verifying += start.elapsed();
     }

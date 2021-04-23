@@ -1,37 +1,31 @@
-use crate::{
-    create_random_proof, generate_random_parameters, prepare_verifying_key, rerandomize_proof,
-    verify_proof,
-};
+use crate::{rerandomize_proof, Groth16};
 use ark_ec::PairingEngine;
 use ark_ff::UniformRand;
 use ark_std::test_rng;
 
-use core::ops::MulAssign;
-
-use ark_ff::{Field, Zero};
+use ark_ff::Field;
 use ark_relations::{
     lc,
-    r1cs::{ConstraintSynthesizer, ConstraintSystemRef, SynthesisError},
+    r1cs::{ConstraintGenerator, ConstraintSystemRef, Instance, SynthesisError},
 };
+use ark_snark::{r1cs::SNARKForR1CS, SNARK};
 
 struct MySillyCircuit<F: Field> {
     a: Option<F>,
     b: Option<F>,
 }
 
-impl<ConstraintF: Field> ConstraintSynthesizer<ConstraintF> for MySillyCircuit<ConstraintF> {
-    fn generate_constraints(
-        self,
+impl<ConstraintF: Field> ConstraintGenerator<ConstraintF> for MySillyCircuit<ConstraintF> {
+    fn generate_constraints_and_variable_assignments(
+        &self,
         cs: ConstraintSystemRef<ConstraintF>,
     ) -> Result<(), SynthesisError> {
         let a = cs.new_witness_variable(|| self.a.ok_or(SynthesisError::AssignmentMissing))?;
         let b = cs.new_witness_variable(|| self.b.ok_or(SynthesisError::AssignmentMissing))?;
         let c = cs.new_input_variable(|| {
-            let mut a = self.a.ok_or(SynthesisError::AssignmentMissing)?;
+            let a = self.a.ok_or(SynthesisError::AssignmentMissing)?;
             let b = self.b.ok_or(SynthesisError::AssignmentMissing)?;
-
-            a.mul_assign(&b);
-            Ok(a)
+            Ok(a * b)
         })?;
 
         cs.enforce_constraint(lc!() + a, lc!() + b, lc!() + c)?;
@@ -43,6 +37,18 @@ impl<ConstraintF: Field> ConstraintSynthesizer<ConstraintF> for MySillyCircuit<C
 
         Ok(())
     }
+
+    fn generate_instance_assignment(
+        &self,
+        cs: ConstraintSystemRef<ConstraintF>,
+    ) -> Result<(), SynthesisError> {
+        let _ = cs.new_input_variable(|| {
+            let a = self.a.ok_or(SynthesisError::AssignmentMissing)?;
+            let b = self.b.ok_or(SynthesisError::AssignmentMissing)?;
+            Ok(a * b)
+        })?;
+        Ok(())
+    }
 }
 
 fn test_prove_and_verify<E>(n_iters: usize)
@@ -51,29 +57,26 @@ where
 {
     let rng = &mut test_rng();
 
-    let params =
-        generate_random_parameters::<E, _, _>(MySillyCircuit { a: None, b: None }, rng).unwrap();
+    let (pk, vk) =
+        Groth16::<E>::circuit_specific_setup_with_cs(&MySillyCircuit { a: None, b: None }, rng)
+            .unwrap();
 
-    let pvk = prepare_verifying_key::<E>(&params.vk);
+    let pvk = Groth16::process_vk(&vk).unwrap();
 
     for _ in 0..n_iters {
         let a = E::Fr::rand(rng);
         let b = E::Fr::rand(rng);
-        let mut c = a;
-        c.mul_assign(&b);
+        let c = a * b;
 
-        let proof = create_random_proof(
-            MySillyCircuit {
-                a: Some(a),
-                b: Some(b),
-            },
-            &params,
-            rng,
-        )
-        .unwrap();
+        let circ = MySillyCircuit {
+            a: Some(a),
+            b: Some(b),
+        };
+        let proof = Groth16::prove_with_cs(&pk, &circ, rng).unwrap();
 
-        assert!(verify_proof(&pvk, &proof, &[c]).unwrap());
-        assert!(!verify_proof(&pvk, &proof, &[a]).unwrap());
+        assert!(Groth16::verify_with_processed_vk(&pvk, &Instance(vec![c]), &proof,).unwrap());
+        assert!(!Groth16::verify_with_processed_vk(&pvk, &Instance(vec![a]), &proof,).unwrap());
+        assert!(Groth16::verify_with_cs_and_processed_vk(&pvk, &circ, &proof).unwrap());
     }
 }
 
@@ -85,39 +88,37 @@ where
 
     let rng = &mut test_rng();
 
-    let params =
-        generate_random_parameters::<E, _, _>(MySillyCircuit { a: None, b: None }, rng).unwrap();
-
-    let pvk = prepare_verifying_key::<E>(&params.vk);
+    let (pk, vk) =
+        Groth16::<E>::circuit_specific_setup_with_cs(&MySillyCircuit { a: None, b: None }, rng)
+            .unwrap();
 
     let a = E::Fr::rand(rng);
     let b = E::Fr::rand(rng);
-    let c = a * &b;
 
     // Create the initial proof
-    let proof1 = create_random_proof(
-        MySillyCircuit {
-            a: Some(a),
-            b: Some(b),
-        },
-        &params,
-        rng,
-    )
-    .unwrap();
+    let circ = MySillyCircuit {
+        a: Some(a),
+        b: Some(b),
+    };
+    let proof1 = Groth16::prove_with_cs(&pk, &circ, rng).unwrap();
 
     // Rerandomize the proof, then rerandomize that
-    let proof2 = rerandomize_proof(rng, &params.vk, &proof1);
-    let proof3 = rerandomize_proof(rng, &params.vk, &proof2);
+    let proof2 = rerandomize_proof(rng, &vk, &proof1);
+    let proof3 = rerandomize_proof(rng, &vk, &proof2);
 
     // Check correctness: a rerandomized proof validates when the original validates
-    assert!(verify_proof(&pvk, &proof1, &[c]).unwrap());
-    assert!(verify_proof(&pvk, &proof2, &[c]).unwrap());
-    assert!(verify_proof(&pvk, &proof3, &[c]).unwrap());
+    assert!(Groth16::verify_with_cs(&vk, &circ, &proof1).unwrap());
+    assert!(Groth16::verify_with_cs(&vk, &circ, &proof2).unwrap());
+    assert!(Groth16::verify_with_cs(&vk, &circ, &proof3).unwrap());
 
     // Check soundness: a rerandomized proof fails to validate when the original fails to validate
-    assert!(!verify_proof(&pvk, &proof1, &[E::Fr::zero()]).unwrap());
-    assert!(!verify_proof(&pvk, &proof2, &[E::Fr::zero()]).unwrap());
-    assert!(!verify_proof(&pvk, &proof3, &[E::Fr::zero()]).unwrap());
+    let bad_circ = MySillyCircuit {
+        a: Some(E::Fr::rand(rng)),
+        b: Some(E::Fr::rand(rng)),
+    };
+    assert!(!Groth16::verify_with_cs(&vk, &bad_circ, &proof1).unwrap());
+    assert!(!Groth16::verify_with_cs(&vk, &bad_circ, &proof2).unwrap());
+    assert!(!Groth16::verify_with_cs(&vk, &bad_circ, &proof3).unwrap());
 
     // Check that the proofs are not equal as group elements
     assert!(proof1 != proof2);

@@ -47,8 +47,8 @@ pub use self::{generator::*, prover::*, verifier::*};
 use ark_crypto_primitives::snark::*;
 use ark_ec::PairingEngine;
 use ark_relations::r1cs::{
-    ConstraintGenerator, ConstraintMatrices, ConstraintSystem, Instance, InstanceGenerator,
-    OptimizationGoal, SynthesisError, SynthesisMode, Witness, WitnessGenerator, R1CS,
+    ConstraintGenerator, ConstraintMatrices, ConstraintSystem, Instance, OptimizationGoal,
+    SynthesisError, SynthesisMode, Witness, R1CS,
 };
 use ark_snark::{r1cs::SNARKForR1CS, SNARK};
 use ark_std::rand::{CryptoRng, RngCore};
@@ -117,7 +117,7 @@ impl<E: PairingEngine> SNARKForR1CS<E::Fr> for Groth16<E> {
 
         // Synthesize the circuit.
         let synthesis_time = start_timer!(|| "Constraint synthesis");
-        circuit.make_constraints(cs.clone())?;
+        circuit.generate_constraints_and_variable_assignments(cs.clone())?;
         end_timer!(synthesis_time);
 
         let lc_time = start_timer!(|| "Inlining LCs");
@@ -132,8 +132,8 @@ impl<E: PairingEngine> SNARKForR1CS<E::Fr> for Groth16<E> {
     /// These inputs consist of the instance and witness. Additionally,
     /// if `Self::PROVING_REQUIRES_MATRICES == true`, then this method returns
     /// `Some(index)` as well.
-    fn prover_inputs<WG: WitnessGenerator<E::Fr>>(
-        circuit: &WG,
+    fn prover_inputs<CG: ConstraintGenerator<E::Fr>>(
+        circuit: &CG,
     ) -> Result<
         (
             Option<ConstraintMatrices<E::Fr>>,
@@ -150,7 +150,7 @@ impl<E: PairingEngine> SNARKForR1CS<E::Fr> for Groth16<E> {
 
         // Synthesize the circuit.
         let synthesis_time = start_timer!(|| "Constraint synthesis");
-        circuit.make_witness(cs.clone())?;
+        circuit.generate_constraints_and_variable_assignments(cs.clone())?;
         debug_assert!(cs.is_satisfied().unwrap());
         end_timer!(synthesis_time);
 
@@ -165,8 +165,8 @@ impl<E: PairingEngine> SNARKForR1CS<E::Fr> for Groth16<E> {
 
     /// Generate inputs for the SNARK verifier from [`cs`].
     /// This input consists of the instance.
-    fn verifier_inputs<IG: InstanceGenerator<E::Fr>>(
-        circuit: &IG,
+    fn verifier_inputs<CG: ConstraintGenerator<E::Fr>>(
+        circuit: &CG,
     ) -> Result<Instance<E::Fr>, Self::Error> {
         let cs = ConstraintSystem::new_ref();
         cs.set_mode(SynthesisMode::Verify);
@@ -174,7 +174,7 @@ impl<E: PairingEngine> SNARKForR1CS<E::Fr> for Groth16<E> {
 
         // Synthesize the circuit.
         let synthesis_time = start_timer!(|| "Constraint synthesis");
-        circuit.make_instance(cs.clone())?;
+        circuit.generate_instance_assignment(cs.clone())?;
         debug_assert!(cs.is_satisfied().unwrap());
         end_timer!(synthesis_time);
 

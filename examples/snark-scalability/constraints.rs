@@ -1,9 +1,7 @@
 use ark_ff::Field;
 use ark_relations::{
     lc,
-    r1cs::{
-        ConstraintSynthesizer, ConstraintSystemRef, LinearCombination, SynthesisError, Variable,
-    },
+    r1cs::{ConstraintGenerator, ConstraintSystemRef, LinearCombination, SynthesisError, Variable},
 };
 use std::marker::PhantomData;
 
@@ -19,10 +17,11 @@ impl<F: Field> Benchmark<F> {
             _engine: PhantomData,
         }
     }
-}
 
-impl<F: Field> ConstraintSynthesizer<F> for Benchmark<F> {
-    fn generate_constraints(self, cs: ConstraintSystemRef<F>) -> Result<(), SynthesisError> {
+    fn input_variables(
+        &self,
+        cs: ConstraintSystemRef<F>,
+    ) -> Result<Vec<(F, Variable)>, SynthesisError> {
         let mut assignments = Vec::new();
         let mut a_val = F::one();
         let mut a_var = cs.new_input_variable(|| Ok(a_val))?;
@@ -30,7 +29,15 @@ impl<F: Field> ConstraintSynthesizer<F> for Benchmark<F> {
 
         let mut b_val = F::one();
         let mut b_var = cs.new_input_variable(|| Ok(b_val))?;
-        assignments.push((a_val, a_var));
+        assignments.push((b_val, b_var));
+
+        Ok(assignments)
+    }
+
+    fn circuit(&self, cs: ConstraintSystemRef<F>) -> Result<(), SynthesisError> {
+        let input_variables = self.input_variables(cs.clone())?;
+        let (a_val, a_var) = assignments[0];
+        let (b_val, b_var) = assignments[1];
 
         for i in 0..self.num_constraints - 1 {
             if i % 2 != 0 {
@@ -74,5 +81,21 @@ impl<F: Field> ConstraintSynthesizer<F> for Benchmark<F> {
         cs.enforce_constraint(lc!() + a_lc, lc!() + b_lc, lc!() + c_var)?;
 
         Ok(())
+    }
+}
+
+impl<F: Field> ConstraintGenerator<F> for Benchmark<F> {
+    fn generate_constraints_and_variable_assignments(
+        &self,
+        cs: ConstraintSystemRef<F>,
+    ) -> Result<(), SynthesisError> {
+        self.circuit(cs)
+    }
+
+    fn generate_instance_assignment(
+        &self,
+        cs: ConstraintSystemRef<F>,
+    ) -> Result<(), SynthesisError> {
+        self.input_variables(cs).map(|_| ())
     }
 }
