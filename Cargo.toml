@@ -21,6 +21,7 @@ ark-serialize = { version = "^0.2.0", default-features = false, features = [ "de
 ark-poly = { version = "^0.2.0", default-features = false }
 ark-std = { version = "^0.2.0", default-features = false }
 ark-relations = { version = "^0.2.0", default-features = false }
+ark-snark = { version = "^0.2.0", default-features = false }
 ark-crypto-primitives = { version = "^0.2.0", default-features = false }
 ark-r1cs-std = { version = "^0.2.0", default-features = false, optional = true }
 
@@ -69,3 +70,7 @@ required-features = ["std"]
 # name = "groth16-recursive"
 # path = "examples/recursive-snark/groth16.rs"
 # required-features = ["std"]
+[patch.crates-io]
+ark-relations = { git = "https://github.com/arkworks-rs/snark", branch = "relations", default-features = false }
+ark-snark = { git = "https://github.com/arkworks-rs/snark", branch = "relations", default-features = false }
+ark-crypto-primitives = { git = "https://github.com/arkworks-rs/crypto-primitives", branch = "relations-update", default-features = false }

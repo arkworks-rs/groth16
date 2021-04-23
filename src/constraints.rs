@@ -11,7 +11,7 @@ use ark_r1cs_std::{
     pairing::PairingVar,
     ToBitsGadget, ToBytesGadget,
 };
-use ark_relations::r1cs::{Namespace, SynthesisError};
+use ark_relations::r1cs::{R1CS, Namespace, SynthesisError};
 use ark_std::{borrow::Borrow, marker::PhantomData, vec::Vec};
 
 /// The proof variable for the Groth16 construction
@@ -102,7 +102,7 @@ impl<E: PairingEngine, P: PairingVar<E, E::Fq>> SNARKGadget<E::Fr, E::Fq, Groth1
     type VerifierSize = usize;
 
     fn verifier_size(
-        circuit_vk: &<Groth16<E> as SNARK<E::Fr>>::VerifyingKey,
+        circuit_vk: &<Groth16<E> as SNARK<R1CS<E::Fr>>>::VerifyingKey,
     ) -> Self::VerifierSize {
         circuit_vk.gamma_abc_g1.len()
     }

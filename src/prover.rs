@@ -2,9 +2,7 @@ use crate::{r1cs_to_qap::R1CStoQAP, Proof, ProvingKey, VerifyingKey};
 use ark_ec::{msm::VariableBaseMSM, AffineCurve, PairingEngine, ProjectiveCurve};
 use ark_ff::{Field, PrimeField, UniformRand, Zero};
 use ark_poly::GeneralEvaluationDomain;
-use ark_relations::r1cs::{
-    ConstraintSynthesizer, ConstraintSystem, OptimizationGoal, Result as R1CSResult,
-};
+use ark_relations::r1cs::{Result as R1CSResult, ConstraintMatrices, Instance, Witness};
 use ark_std::rand::Rng;
 use ark_std::{cfg_into_iter, cfg_iter, vec::Vec};
 
@@ -14,64 +12,53 @@ use rayon::prelude::*;
 /// Create a Groth16 proof that is zero-knowledge.
 /// This method samples randomness for zero knowledges via `rng`.
 #[inline]
-pub fn create_random_proof<E, C, R>(
-    circuit: C,
+pub fn create_random_proof<E, R>(
     pk: &ProvingKey<E>,
+    index: &ConstraintMatrices<E::Fr>,
+    instance: &Instance<E::Fr>,
+    witness: &Witness<E::Fr>,
     rng: &mut R,
 ) -> R1CSResult<Proof<E>>
 where
     E: PairingEngine,
-    C: ConstraintSynthesizer<E::Fr>,
     R: Rng,
 {
     let r = E::Fr::rand(rng);
     let s = E::Fr::rand(rng);
 
-    create_proof::<E, C>(circuit, pk, r, s)
+    create_proof::<E>(pk, index, instance, witness, r, s)
 }
 
 /// Create a Groth16 proof that is *not* zero-knowledge.
 #[inline]
-pub fn create_proof_no_zk<E, C>(circuit: C, pk: &ProvingKey<E>) -> R1CSResult<Proof<E>>
+pub fn create_proof_no_zk<E>(
+    pk: &ProvingKey<E>, 
+    index: &ConstraintMatrices<E::Fr>,
+    instance: &Instance<E::Fr>,
+    witness: &Witness<E::Fr>,
+) -> R1CSResult<Proof<E>>
 where
     E: PairingEngine,
-    C: ConstraintSynthesizer<E::Fr>,
 {
-    create_proof::<E, C>(circuit, pk, E::Fr::zero(), E::Fr::zero())
+    create_proof::<E>(pk, index, instance, witness, E::Fr::zero(), E::Fr::zero())
 }
 
 /// Create a Groth16 proof using randomness `r` and `s`.
 #[inline]
-pub fn create_proof<E, C>(
-    circuit: C,
+pub fn create_proof<E: PairingEngine>(
     pk: &ProvingKey<E>,
+    index: &ConstraintMatrices<E::Fr>,
+    instance: &Instance<E::Fr>,
+    witness: &Witness<E::Fr>,
     r: E::Fr,
     s: E::Fr,
-) -> R1CSResult<Proof<E>>
-where
-    E: PairingEngine,
-    C: ConstraintSynthesizer<E::Fr>,
-{
+) -> R1CSResult<Proof<E>> {
     type D<F> = GeneralEvaluationDomain<F>;
 
     let prover_time = start_timer!(|| "Groth16::Prover");
-    let cs = ConstraintSystem::new_ref();
-
-    // Set the optimization goal
-    cs.set_optimization_goal(OptimizationGoal::Constraints);
-
-    // Synthesize the circuit.
-    let synthesis_time = start_timer!(|| "Constraint synthesis");
-    circuit.generate_constraints(cs.clone())?;
-    debug_assert!(cs.is_satisfied().unwrap());
-    end_timer!(synthesis_time);
-
-    let lc_time = start_timer!(|| "Inlining LCs");
-    cs.finalize();
-    end_timer!(lc_time);
 
     let witness_map_time = start_timer!(|| "R1CS to QAP witness map");
-    let h = R1CStoQAP::witness_map::<E::Fr, D<E::Fr>>(cs.clone())?;
+    let h = R1CStoQAP::witness_map::<E::Fr, D<E::Fr>>(index, instance, witness)?;
     end_timer!(witness_map_time);
     let h_assignment = cfg_into_iter!(h).map(|s| s.into()).collect::<Vec<_>>();
     let c_acc_time = start_timer!(|| "Compute C");
@@ -79,27 +66,23 @@ where
     let h_acc = VariableBaseMSM::multi_scalar_mul(&pk.h_query, &h_assignment);
     drop(h_assignment);
     // Compute C
-    let prover = cs.borrow().unwrap();
-    let aux_assignment = cfg_iter!(prover.witness_assignment)
+    let witness = cfg_iter!(witness.0)
         .map(|s| s.into_repr())
         .collect::<Vec<_>>();
 
-    let l_aux_acc = VariableBaseMSM::multi_scalar_mul(&pk.l_query, &aux_assignment);
+    let l_aux_acc = VariableBaseMSM::multi_scalar_mul(&pk.l_query, &witness);
 
     let r_s_delta_g1 = pk.delta_g1.into_projective().mul(r.into()).mul(s.into());
 
     end_timer!(c_acc_time);
 
-    let input_assignment = prover.instance_assignment[1..]
+    let instance = instance.0[1..]
         .iter()
         .map(|s| s.into_repr())
         .collect::<Vec<_>>();
 
-    drop(prover);
-    drop(cs);
-
-    let assignment = [&input_assignment[..], &aux_assignment[..]].concat();
-    drop(aux_assignment);
+    let assignment = [&instance[..], &witness[..]].concat();
+    drop(witness);
 
     // Compute A
     let a_acc_time = start_timer!(|| "Compute A");

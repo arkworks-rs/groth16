@@ -2,11 +2,8 @@ use crate::{r1cs_to_qap::R1CStoQAP, ProvingKey, Vec, VerifyingKey};
 use ark_ec::{msm::FixedBaseMSM, PairingEngine, ProjectiveCurve};
 use ark_ff::{Field, PrimeField, UniformRand, Zero};
 use ark_poly::{EvaluationDomain, GeneralEvaluationDomain};
-use ark_relations::r1cs::{
-    ConstraintSynthesizer, ConstraintSystem, OptimizationGoal, Result as R1CSResult,
-    SynthesisError, SynthesisMode,
-};
-use ark_std::rand::Rng;
+use ark_relations::r1cs::{Result as R1CSResult, SynthesisError, ConstraintMatrices};
+use ark_std::rand::{RngCore, CryptoRng};
 use ark_std::{cfg_into_iter, cfg_iter};
 
 #[cfg(feature = "parallel")]
@@ -15,11 +12,10 @@ use rayon::prelude::*;
 /// Generates a random common reference string for
 /// a circuit.
 #[inline]
-pub fn generate_random_parameters<E, C, R>(circuit: C, rng: &mut R) -> R1CSResult<ProvingKey<E>>
+pub fn generate_random_parameters<E, R>(index: &ConstraintMatrices<E::Fr>, rng: &mut R) -> R1CSResult<ProvingKey<E>>
 where
     E: PairingEngine,
-    C: ConstraintSynthesizer<E::Fr>,
-    R: Rng,
+    R: RngCore + CryptoRng,
 {
     let alpha = E::Fr::rand(rng);
     let beta = E::Fr::rand(rng);
@@ -29,8 +25,8 @@ where
     let g1_generator = E::G1Projective::rand(rng);
     let g2_generator = E::G2Projective::rand(rng);
 
-    generate_parameters::<E, C, R>(
-        circuit,
+    generate_parameters::<E, R>(
+        index,
         alpha,
         beta,
         gamma,
@@ -42,8 +38,8 @@ where
 }
 
 /// Create parameters for a circuit, given some toxic waste and group generators
-pub fn generate_parameters<E, C, R>(
-    circuit: C,
+pub fn generate_parameters<E, R>(
+    index: &ConstraintMatrices<E::Fr>,
     alpha: E::Fr,
     beta: E::Fr,
     gamma: E::Fr,
@@ -54,29 +50,17 @@ pub fn generate_parameters<E, C, R>(
 ) -> R1CSResult<ProvingKey<E>>
 where
     E: PairingEngine,
-    C: ConstraintSynthesizer<E::Fr>,
-    R: Rng,
+    R: RngCore + CryptoRng,
 {
     type D<F> = GeneralEvaluationDomain<F>;
 
     let setup_time = start_timer!(|| "Groth16::Generator");
-    let cs = ConstraintSystem::new_ref();
-    cs.set_optimization_goal(OptimizationGoal::Constraints);
-    cs.set_mode(SynthesisMode::Setup);
 
-    // Synthesize the circuit.
-    let synthesis_time = start_timer!(|| "Constraint synthesis");
-    circuit.generate_constraints(cs.clone())?;
-    end_timer!(synthesis_time);
-
-    let lc_time = start_timer!(|| "Inlining LCs");
-    cs.finalize();
-    end_timer!(lc_time);
 
     ///////////////////////////////////////////////////////////////////////////
     let domain_time = start_timer!(|| "Constructing evaluation domain");
 
-    let domain_size = cs.num_constraints() + cs.num_instance_variables();
+    let domain_size = index.num_constraints + index.num_instance_variables;
     let domain = D::new(domain_size).ok_or(SynthesisError::PolynomialDegreeTooLarge)?;
     let t = domain.sample_element_outside_domain(rng);
 
@@ -84,9 +68,9 @@ where
     ///////////////////////////////////////////////////////////////////////////
 
     let reduction_time = start_timer!(|| "R1CS to QAP Instance Map with Evaluation");
-    let num_instance_variables = cs.num_instance_variables();
+    let num_instance_variables = index.num_instance_variables;
     let (a, b, c, zt, qap_num_variables, m_raw) =
-        R1CStoQAP::instance_map_with_evaluation::<E::Fr, D<E::Fr>>(cs, &t)?;
+        R1CStoQAP::instance_map_with_evaluation::<E::Fr, D<E::Fr>>(index, &t)?;
     end_timer!(reduction_time);
 
     // Compute query densities
@@ -114,8 +98,6 @@ where
         .zip(&c)
         .map(|((a, b), c)| (beta * a + &(alpha * b) + c) * &delta_inverse)
         .collect::<Vec<_>>();
-
-    drop(c);
 
     // Compute B window table
     let g2_time = start_timer!(|| "Compute G2 table");
