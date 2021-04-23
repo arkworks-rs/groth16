@@ -11,7 +11,7 @@ use ark_r1cs_std::{
     pairing::PairingVar,
     ToBitsGadget, ToBytesGadget,
 };
-use ark_relations::r1cs::{R1CS, Namespace, SynthesisError};
+use ark_relations::r1cs::{Namespace, SynthesisError, R1CS};
 use ark_std::{borrow::Borrow, marker::PhantomData, vec::Vec};
 
 /// The proof variable for the Groth16 construction

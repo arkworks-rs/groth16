@@ -2,7 +2,7 @@ use crate::{r1cs_to_qap::R1CStoQAP, Proof, ProvingKey, VerifyingKey};
 use ark_ec::{msm::VariableBaseMSM, AffineCurve, PairingEngine, ProjectiveCurve};
 use ark_ff::{Field, PrimeField, UniformRand, Zero};
 use ark_poly::GeneralEvaluationDomain;
-use ark_relations::r1cs::{Result as R1CSResult, ConstraintMatrices, Instance, Witness};
+use ark_relations::r1cs::{ConstraintMatrices, Instance, Result as R1CSResult, Witness};
 use ark_std::rand::Rng;
 use ark_std::{cfg_into_iter, cfg_iter, vec::Vec};
 
@@ -32,7 +32,7 @@ where
 /// Create a Groth16 proof that is *not* zero-knowledge.
 #[inline]
 pub fn create_proof_no_zk<E>(
-    pk: &ProvingKey<E>, 
+    pk: &ProvingKey<E>,
     index: &ConstraintMatrices<E::Fr>,
     instance: &Instance<E::Fr>,
     witness: &Witness<E::Fr>,

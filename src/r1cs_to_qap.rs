@@ -3,7 +3,9 @@ use ark_poly::EvaluationDomain;
 use ark_std::{cfg_iter, cfg_iter_mut, vec};
 
 use crate::Vec;
-use ark_relations::r1cs::{Result as R1CSResult, SynthesisError, ConstraintMatrices, Instance, Witness};
+use ark_relations::r1cs::{
+    ConstraintMatrices, Instance, Result as R1CSResult, SynthesisError, Witness,
+};
 use core::ops::AddAssign;
 
 #[cfg(feature = "parallel")]

@@ -46,11 +46,12 @@ pub use self::{generator::*, prover::*, verifier::*};
 
 use ark_crypto_primitives::snark::*;
 use ark_ec::PairingEngine;
-use ark_snark::{SNARK, r1cs::SNARKForR1CS};
 use ark_relations::r1cs::{
-    R1CS, ConstraintSystem, ConstraintGenerator, InstanceGenerator, WitnessGenerator, SynthesisError, ConstraintMatrices,
-    OptimizationGoal, Instance, Witness, SynthesisMode};
-use ark_std::rand::{RngCore, CryptoRng};
+    ConstraintGenerator, ConstraintMatrices, ConstraintSystem, Instance, InstanceGenerator,
+    OptimizationGoal, SynthesisError, SynthesisMode, Witness, WitnessGenerator, R1CS,
+};
+use ark_snark::{r1cs::SNARKForR1CS, SNARK};
+use ark_std::rand::{CryptoRng, RngCore};
 use ark_std::{marker::PhantomData, vec::Vec};
 
 /// The SNARK of [[Groth16]](https://eprint.iacr.org/2016/260.pdf).
@@ -76,7 +77,6 @@ impl<E: PairingEngine> SNARK<R1CS<E::Fr>> for Groth16<E> {
     ) -> Result<Self::Proof, Self::Error> {
         create_random_proof(pk, index.as_ref().unwrap(), instance, witness, rng)
     }
-
 
     fn process_vk(
         circuit_vk: &Self::VerifyingKey,
@@ -108,7 +108,9 @@ impl<E: PairingEngine> CircuitSpecificSetupSNARK<R1CS<E::Fr>> for Groth16<E> {
 impl<E: PairingEngine> SNARKForR1CS<E::Fr> for Groth16<E> {
     const PROVING_REQUIRES_MATRICES: bool = true;
 
-    fn indexer_inputs<CG: ConstraintGenerator<E::Fr>>(circuit: &CG) -> Result<ConstraintMatrices<E::Fr>, Self::Error> {
+    fn indexer_inputs<CG: ConstraintGenerator<E::Fr>>(
+        circuit: &CG,
+    ) -> Result<ConstraintMatrices<E::Fr>, Self::Error> {
         let cs = ConstraintSystem::new_ref();
         cs.set_optimization_goal(OptimizationGoal::Constraints);
         cs.set_mode(SynthesisMode::Setup);
@@ -121,16 +123,29 @@ impl<E: PairingEngine> SNARKForR1CS<E::Fr> for Groth16<E> {
         let lc_time = start_timer!(|| "Inlining LCs");
         cs.optimize();
         end_timer!(lc_time);
-        Ok(cs.to_matrices().expect("matrices should exist in setup mode"))
+        Ok(cs
+            .to_matrices()
+            .expect("matrices should exist in setup mode"))
     }
 
     /// Generate inputs for the SNARK prover from [`cs`].
     /// These inputs consist of the instance and witness. Additionally,
-    /// if `Self::PROVING_REQUIRES_MATRICES == true`, then this method returns 
+    /// if `Self::PROVING_REQUIRES_MATRICES == true`, then this method returns
     /// `Some(index)` as well.
-    fn prover_inputs<WG: WitnessGenerator<E::Fr>>(circuit: &WG) -> Result<(Option<ConstraintMatrices<E::Fr>>, Instance<E::Fr>, Witness<E::Fr>), Self::Error> {
+    fn prover_inputs<WG: WitnessGenerator<E::Fr>>(
+        circuit: &WG,
+    ) -> Result<
+        (
+            Option<ConstraintMatrices<E::Fr>>,
+            Instance<E::Fr>,
+            Witness<E::Fr>,
+        ),
+        Self::Error,
+    > {
         let cs = ConstraintSystem::new_ref();
-        cs.set_mode(SynthesisMode::Prove { construct_matrices: true });
+        cs.set_mode(SynthesisMode::Prove {
+            construct_matrices: true,
+        });
         cs.set_optimization_goal(OptimizationGoal::Constraints);
 
         // Synthesize the circuit.
@@ -150,7 +165,9 @@ impl<E: PairingEngine> SNARKForR1CS<E::Fr> for Groth16<E> {
 
     /// Generate inputs for the SNARK verifier from [`cs`].
     /// This input consists of the instance.
-    fn verifier_inputs<IG: InstanceGenerator<E::Fr>>(circuit: &IG) -> Result<Instance<E::Fr>, Self::Error> {
+    fn verifier_inputs<IG: InstanceGenerator<E::Fr>>(
+        circuit: &IG,
+    ) -> Result<Instance<E::Fr>, Self::Error> {
         let cs = ConstraintSystem::new_ref();
         cs.set_mode(SynthesisMode::Verify);
         cs.set_optimization_goal(OptimizationGoal::Constraints);
@@ -164,6 +181,7 @@ impl<E: PairingEngine> SNARKForR1CS<E::Fr> for Groth16<E> {
         let lc_time = start_timer!(|| "Inlining LCs");
         cs.optimize();
         end_timer!(lc_time);
-        cs.instance_assignment().ok_or(SynthesisError::AssignmentMissing)
+        cs.instance_assignment()
+            .ok_or(SynthesisError::AssignmentMissing)
     }
 }

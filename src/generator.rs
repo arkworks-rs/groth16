@@ -2,8 +2,8 @@ use crate::{r1cs_to_qap::R1CStoQAP, ProvingKey, Vec, VerifyingKey};
 use ark_ec::{msm::FixedBaseMSM, PairingEngine, ProjectiveCurve};
 use ark_ff::{Field, PrimeField, UniformRand, Zero};
 use ark_poly::{EvaluationDomain, GeneralEvaluationDomain};
-use ark_relations::r1cs::{Result as R1CSResult, SynthesisError, ConstraintMatrices};
-use ark_std::rand::{RngCore, CryptoRng};
+use ark_relations::r1cs::{ConstraintMatrices, Result as R1CSResult, SynthesisError};
+use ark_std::rand::{CryptoRng, RngCore};
 use ark_std::{cfg_into_iter, cfg_iter};
 
 #[cfg(feature = "parallel")]
@@ -12,7 +12,10 @@ use rayon::prelude::*;
 /// Generates a random common reference string for
 /// a circuit.
 #[inline]
-pub fn generate_random_parameters<E, R>(index: &ConstraintMatrices<E::Fr>, rng: &mut R) -> R1CSResult<ProvingKey<E>>
+pub fn generate_random_parameters<E, R>(
+    index: &ConstraintMatrices<E::Fr>,
+    rng: &mut R,
+) -> R1CSResult<ProvingKey<E>>
 where
     E: PairingEngine,
     R: RngCore + CryptoRng,
@@ -55,7 +58,6 @@ where
     type D<F> = GeneralEvaluationDomain<F>;
 
     let setup_time = start_timer!(|| "Groth16::Generator");
-
 
     ///////////////////////////////////////////////////////////////////////////
     let domain_time = start_timer!(|| "Constructing evaluation domain");
