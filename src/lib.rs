@@ -175,7 +175,6 @@ impl<E: PairingEngine> SNARKForR1CS<E::Fr> for Groth16<E> {
         // Synthesize the circuit.
         let synthesis_time = start_timer!(|| "Constraint synthesis");
         circuit.generate_instance_assignment(cs.clone())?;
-        debug_assert!(cs.is_satisfied().unwrap());
         end_timer!(synthesis_time);
 
         let lc_time = start_timer!(|| "Inlining LCs");

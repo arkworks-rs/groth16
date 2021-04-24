@@ -21,11 +21,12 @@ use std::time::{Duration, Instant};
 use ark_bls12_377::{Bls12_377, Fr};
 use ark_ff::Field;
 use ark_std::test_rng;
+use ark_snark::{SNARK, r1cs::SNARKForR1CS};
 
 // We'll use these interfaces to construct our circuit.
 use ark_relations::{
     lc, ns,
-    r1cs::{ConstraintSynthesizer, ConstraintSystemRef, SynthesisError, Variable},
+    r1cs::{ConstraintGenerator, ConstraintSystemRef, SynthesisError, Variable},
 };
 
 const MIMC_ROUNDS: usize = 322;
@@ -47,12 +48,8 @@ fn mimc<F: Field>(mut xl: F, mut xr: F, constants: &[F]) -> F {
     assert_eq!(constants.len(), MIMC_ROUNDS);
 
     for i in 0..MIMC_ROUNDS {
-        let mut tmp1 = xl;
-        tmp1.add_assign(&constants[i]);
-        let mut tmp2 = tmp1;
-        tmp2.square_in_place();
-        tmp2.mul_assign(&tmp1);
-        tmp2.add_assign(&xr);
+        let tmp1 = xl + constants[i];
+        let tmp2 = tmp1.square() * tmp1 + xr;
         xr = xl;
         xl = tmp2;
     }
@@ -65,15 +62,17 @@ fn mimc<F: Field>(mut xl: F, mut xr: F, constants: &[F]) -> F {
 struct MiMCDemo<'a, F: Field> {
     xl: Option<F>,
     xr: Option<F>,
+    result: Option<F>,
     constants: &'a [F],
 }
 
 /// Our demo circuit implements this `Circuit` trait which
 /// is used during paramgen and proving in order to
 /// synthesize the constraint system.
-impl<'a, F: Field> ConstraintSynthesizer<F> for MiMCDemo<'a, F> {
-    fn generate_constraints(self, cs: ConstraintSystemRef<F>) -> Result<(), SynthesisError> {
+impl<'a, F: Field> ConstraintGenerator<F> for MiMCDemo<'a, F> {
+    fn generate_constraints_and_variable_assignments(&self, cs: ConstraintSystemRef<F>) -> Result<(), SynthesisError> {
         assert_eq!(self.constants.len(), MIMC_ROUNDS);
+        let result = cs.new_input_variable(|| self.result.ok_or(SynthesisError::AssignmentMissing))?;
 
         // Allocate the first component of the preimage.
         let mut xl_value = self.xl;
@@ -91,13 +90,8 @@ impl<'a, F: Field> ConstraintSynthesizer<F> for MiMCDemo<'a, F> {
             let cs = ns.cs();
 
             // tmp = (xL + Ci)^2
-            let tmp_value = xl_value.map(|mut e| {
-                e.add_assign(&self.constants[i]);
-                e.square_in_place();
-                e
-            });
-            let tmp =
-                cs.new_witness_variable(|| tmp_value.ok_or(SynthesisError::AssignmentMissing))?;
+            let tmp_val = xl_value.map(|e| (e + &self.constants[i]).square());
+            let tmp = cs.new_witness_variable(|| tmp_val.ok_or(SynthesisError::AssignmentMissing))?;
 
             cs.enforce_constraint(
                 lc!() + xl + (self.constants[i], Variable::One),
@@ -108,17 +102,12 @@ impl<'a, F: Field> ConstraintSynthesizer<F> for MiMCDemo<'a, F> {
             // new_xL = xR + (xL + Ci)^3
             // new_xL = xR + tmp * (xL + Ci)
             // new_xL - xR = tmp * (xL + Ci)
-            let new_xl_value = xl_value.map(|mut e| {
-                e.add_assign(&self.constants[i]);
-                e.mul_assign(&tmp_value.unwrap());
-                e.add_assign(&xr_value.unwrap());
-                e
-            });
+            let new_xl_value = xl_value.and_then(|e| Some((e + &self.constants[i]) * tmp_val? + &xr_value?));
 
             let new_xl = if i == (MIMC_ROUNDS - 1) {
-                // This is the last round, xL is our image and so
+                // This is the last round, xL is our result and so
                 // we allocate a public input.
-                cs.new_input_variable(|| new_xl_value.ok_or(SynthesisError::AssignmentMissing))?
+                result
             } else {
                 cs.new_witness_variable(|| new_xl_value.ok_or(SynthesisError::AssignmentMissing))?
             };
@@ -140,14 +129,17 @@ impl<'a, F: Field> ConstraintSynthesizer<F> for MiMCDemo<'a, F> {
 
         Ok(())
     }
+
+    fn generate_instance_assignment(&self, cs: ConstraintSystemRef<F>) -> Result<(), SynthesisError> {
+        let _ = cs.new_input_variable(|| self.result.ok_or(SynthesisError::AssignmentMissing))?;
+        Ok(())
+    }
 }
 
 #[test]
-fn test_mimc_gm_17() {
+fn test_mimc() {
     // We're going to use the Groth-Maller17 proving system.
-    use ark_groth16::{
-        create_random_proof, generate_random_parameters, prepare_verifying_key, verify_proof,
-    };
+    use ark_groth16::Groth16;
 
     // This may not be cryptographically safe, use
     // `OsRng` (for example) in production software.
@@ -159,18 +151,19 @@ fn test_mimc_gm_17() {
     println!("Creating parameters...");
 
     // Create parameters for our circuit
-    let params = {
+    let (pk, vk) = {
         let c = MiMCDemo::<Fr> {
             xl: None,
             xr: None,
+            result: None,
             constants: &constants,
         };
 
-        generate_random_parameters::<Bls12_377, _, _>(c, rng).unwrap()
+        Groth16::<Bls12_377>::circuit_specific_setup_with_cs(&c, rng).unwrap()
     };
 
     // Prepare the verification key (for proof verification)
-    let pvk = prepare_verifying_key(&params.vk);
+    let pvk = Groth16::process_vk(&vk).unwrap();
 
     println!("Creating proofs...");
 
@@ -198,12 +191,19 @@ fn test_mimc_gm_17() {
             let c = MiMCDemo {
                 xl: Some(xl),
                 xr: Some(xr),
+                result: Some(image),
                 constants: &constants,
             };
 
             // Create a groth16 proof with our parameters.
-            let proof = create_random_proof(c, &params, rng).unwrap();
-            assert!(verify_proof(&pvk, &proof, &[image]).unwrap());
+            let proof = Groth16::prove_with_cs(&pk, &c, rng).unwrap();
+            let verifying_c = MiMCDemo {
+                xl: None,
+                xr: None,
+                result: Some(image),
+                constants: &constants,
+            };
+            assert!(Groth16::verify_with_cs_and_processed_vk(&pvk, &verifying_c, &proof).unwrap());
 
             // proof.write(&mut proof_vec).unwrap();
         }

@@ -396,10 +396,9 @@ where
 
 #[cfg(test)]
 mod test {
-    use crate::{constraints::Groth16VerifierGadget, Groth16};
+    use crate::{constraints::*, Groth16};
     use ark_crypto_primitives::snark::constraints::SNARKGadget;
-    use ark_crypto_primitives::snark::{CircuitSpecificSetupSNARK, SNARK};
-    use ark_ec::PairingEngine;
+    use ark_crypto_primitives::snark::SNARK;
     use ark_ff::{Field, UniformRand};
     use ark_mnt4_298::{
         constraints::PairingVar as MNT4PairingVar, Fr as MNT4Fr, MNT4_298 as MNT4PairingEngine,
@@ -409,33 +408,28 @@ mod test {
     use ark_r1cs_std::{alloc::AllocVar, eq::EqGadget};
     use ark_relations::{
         lc, ns,
-        r1cs::{ConstraintSynthesizer, ConstraintSystem, ConstraintSystemRef, SynthesisError},
+        r1cs::{ConstraintGenerator, ConstraintSystem, ConstraintSystemRef, SynthesisError},
     };
-    use ark_std::ops::MulAssign;
+    use ark_snark::r1cs::SNARKForR1CS;
     use ark_std::test_rng;
 
     #[derive(Copy, Clone)]
     struct Circuit<F: Field> {
         a: Option<F>,
         b: Option<F>,
+        c: Option<F>,
         num_constraints: usize,
         num_variables: usize,
     }
 
-    impl<ConstraintF: Field> ConstraintSynthesizer<ConstraintF> for Circuit<ConstraintF> {
-        fn generate_constraints(
-            self,
+    impl<ConstraintF: Field> ConstraintGenerator<ConstraintF> for Circuit<ConstraintF> {
+        fn generate_constraints_and_variable_assignments(
+            &self,
             cs: ConstraintSystemRef<ConstraintF>,
         ) -> Result<(), SynthesisError> {
             let a = cs.new_witness_variable(|| self.a.ok_or(SynthesisError::AssignmentMissing))?;
             let b = cs.new_witness_variable(|| self.b.ok_or(SynthesisError::AssignmentMissing))?;
-            let c = cs.new_input_variable(|| {
-                let mut a = self.a.ok_or(SynthesisError::AssignmentMissing)?;
-                let b = self.b.ok_or(SynthesisError::AssignmentMissing)?;
-
-                a.mul_assign(&b);
-                Ok(a)
-            })?;
+            let c = cs.new_input_variable(|| self.c.ok_or(SynthesisError::AssignmentMissing))?;
 
             for _ in 0..(self.num_variables - 3) {
                 cs.new_witness_variable(|| self.a.ok_or(SynthesisError::AssignmentMissing))?;
@@ -445,6 +439,14 @@ mod test {
                 cs.enforce_constraint(lc!() + a, lc!() + b, lc!() + c)
                     .unwrap();
             }
+            Ok(())
+        }
+
+        fn generate_instance_assignment(
+            &self,
+            cs: ConstraintSystemRef<ConstraintF>,
+        ) -> Result<(), SynthesisError> {
+            let _ = cs.new_input_variable(|| self.c.ok_or(SynthesisError::AssignmentMissing))?;
             Ok(())
         }
     }
@@ -457,51 +459,40 @@ mod test {
         let mut rng = test_rng();
         let a = MNT4Fr::rand(&mut rng);
         let b = MNT4Fr::rand(&mut rng);
-        let mut c = a;
-        c.mul_assign(&b);
+        let c = a * b;
 
         let circ = Circuit {
-            a: Some(a.clone()),
-            b: Some(b.clone()),
+            a: Some(a),
+            b: Some(b),
+            c: Some(c),
             num_constraints: 100,
             num_variables: 25,
         };
 
-        let (pk, vk) = TestSNARK::setup(circ, &mut rng).unwrap();
+        let ver_circ = Circuit {
+            a: None,
+            b: None,
+            c: Some(c),
+            num_constraints: 100,
+            num_variables: 25,
+        };
 
-        let proof = TestSNARK::prove(&pk, circ.clone(), &mut rng).unwrap();
+        let (pk, vk) = TestSNARK::circuit_specific_setup_with_cs(&circ, &mut rng).unwrap();
+
+        let proof = TestSNARK::prove_with_cs(&pk, &circ, &mut rng).unwrap();
 
         assert!(
-            TestSNARK::verify(&vk, &vec![c], &proof).unwrap(),
+            TestSNARK::verify_with_cs(&vk, &ver_circ, &proof).unwrap(),
             "The native verification check fails."
         );
 
         let cs_sys = ConstraintSystem::<MNT6Fr>::new();
         let cs = ConstraintSystemRef::new(cs_sys);
 
-        let input_gadget = <TestSNARKGadget as SNARKGadget<
-            <MNT4PairingEngine as PairingEngine>::Fr,
-            <MNT4PairingEngine as PairingEngine>::Fq,
-            TestSNARK,
-        >>::InputVar::new_input(ns!(cs, "new_input"), || Ok(vec![c]))
-        .unwrap();
-        let proof_gadget = <TestSNARKGadget as SNARKGadget<
-            <MNT4PairingEngine as PairingEngine>::Fr,
-            <MNT4PairingEngine as PairingEngine>::Fq,
-            TestSNARK,
-        >>::ProofVar::new_witness(ns!(cs, "alloc_proof"), || Ok(proof))
-        .unwrap();
-        let vk_gadget = <TestSNARKGadget as SNARKGadget<
-            <MNT4PairingEngine as PairingEngine>::Fr,
-            <MNT4PairingEngine as PairingEngine>::Fq,
-            TestSNARK,
-        >>::VerifyingKeyVar::new_constant(ns!(cs, "alloc_vk"), vk.clone())
-        .unwrap();
-        <TestSNARKGadget as SNARKGadget<
-            <MNT4PairingEngine as PairingEngine>::Fr,
-            <MNT4PairingEngine as PairingEngine>::Fq,
-            TestSNARK,
-        >>::verify(&vk_gadget, &input_gadget, &proof_gadget)
+        let input_gadget = crate::BooleanInputVar::new_input(ns!(cs, "new_input"), || Ok(vec![c])).unwrap();
+        let proof_gadget = ProofVar::new_witness(ns!(cs, "alloc_proof"), || Ok(proof)).unwrap();
+        let vk_gadget = VerifyingKeyVar::new_constant(ns!(cs, "alloc_vk"), vk.clone()).unwrap();
+        TestSNARKGadget::verify(&vk_gadget, &input_gadget, &proof_gadget)
         .unwrap()
         .enforce_equal(&Boolean::constant(true))
         .unwrap();
@@ -513,11 +504,7 @@ mod test {
         );
 
         let pvk = TestSNARK::process_vk(&vk).unwrap();
-        let pvk_gadget = <TestSNARKGadget as SNARKGadget<
-            <MNT4PairingEngine as PairingEngine>::Fr,
-            <MNT4PairingEngine as PairingEngine>::Fq,
-            TestSNARK,
-        >>::ProcessedVerifyingKeyVar::new_constant(
+        let pvk_gadget = PreparedVerifyingKeyVar::new_constant(
             ns!(cs, "alloc_pvk"), pvk.clone()
         )
         .unwrap();

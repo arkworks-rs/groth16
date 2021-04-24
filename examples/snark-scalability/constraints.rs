@@ -23,21 +23,21 @@ impl<F: Field> Benchmark<F> {
         cs: ConstraintSystemRef<F>,
     ) -> Result<Vec<(F, Variable)>, SynthesisError> {
         let mut assignments = Vec::new();
-        let mut a_val = F::one();
-        let mut a_var = cs.new_input_variable(|| Ok(a_val))?;
+        let a_val = F::one();
+        let a_var = cs.new_input_variable(|| Ok(a_val))?;
         assignments.push((a_val, a_var));
 
-        let mut b_val = F::one();
-        let mut b_var = cs.new_input_variable(|| Ok(b_val))?;
+        let b_val = F::one();
+        let b_var = cs.new_input_variable(|| Ok(b_val))?;
         assignments.push((b_val, b_var));
 
         Ok(assignments)
     }
 
     fn circuit(&self, cs: ConstraintSystemRef<F>) -> Result<(), SynthesisError> {
-        let input_variables = self.input_variables(cs.clone())?;
-        let (a_val, a_var) = assignments[0];
-        let (b_val, b_var) = assignments[1];
+        let mut assignments = self.input_variables(cs.clone())?;
+        let (mut a_val, mut a_var) = assignments[0];
+        let (mut b_val, mut b_var) = assignments[1];
 
         for i in 0..self.num_constraints - 1 {
             if i % 2 != 0 {

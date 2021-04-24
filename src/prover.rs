@@ -1,6 +1,6 @@
 use crate::{r1cs_to_qap::R1CStoQAP, Proof, ProvingKey, VerifyingKey};
 use ark_ec::{msm::VariableBaseMSM, AffineCurve, PairingEngine, ProjectiveCurve};
-use ark_ff::{Field, PrimeField, UniformRand, Zero};
+use ark_ff::{Field, One, PrimeField, UniformRand, Zero};
 use ark_poly::GeneralEvaluationDomain;
 use ark_relations::r1cs::{ConstraintMatrices, Instance, Result as R1CSResult, Witness};
 use ark_std::rand::Rng;
@@ -54,11 +54,13 @@ pub fn create_proof<E: PairingEngine>(
     s: E::Fr,
 ) -> R1CSResult<Proof<E>> {
     type D<F> = GeneralEvaluationDomain<F>;
+    let mut instance = instance.clone();
+    instance.0.insert(0, E::Fr::one());
 
     let prover_time = start_timer!(|| "Groth16::Prover");
 
     let witness_map_time = start_timer!(|| "R1CS to QAP witness map");
-    let h = R1CStoQAP::witness_map::<E::Fr, D<E::Fr>>(index, instance, witness)?;
+    let h = R1CStoQAP::witness_map::<E::Fr, D<E::Fr>>(index, &instance, witness)?;
     end_timer!(witness_map_time);
     let h_assignment = cfg_into_iter!(h).map(|s| s.into()).collect::<Vec<_>>();
     let c_acc_time = start_timer!(|| "Compute C");

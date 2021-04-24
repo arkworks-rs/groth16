@@ -13,7 +13,6 @@
 use csv;
 
 // For randomness (during paramgen and proof generation)
-use ark_ff::One;
 use ark_std::test_rng;
 
 // For benchmarking
@@ -28,7 +27,7 @@ use ark_bls12_377::{Bls12_377, Fr};
 
 // We're going to use the Groth 16 proving system.
 use ark_groth16::Groth16;
-use ark_snark::r1cs::{SNARKForR1CS, SNARK};
+use ark_snark::{SNARK, r1cs::SNARKForR1CS};
 
 use std::{env, fs::OpenOptions, path::PathBuf, process};
 
@@ -83,25 +82,21 @@ fn main() -> Result<(), Box<dyn Error>> {
         let start = Instant::now();
         let (pk, vk) = {
             let c = Benchmark::<Fr>::new(num_constraints);
-            Groth16::circuit_specific_setup_with_cs::<Bls12_377, _, _>(&c, rng)?
+            Groth16::<Bls12_377>::circuit_specific_setup_with_cs(&c, rng)?
         };
 
         // Prepare the verification key (for proof verification)
-        let pvk = Groth16::process_vk(&vk);
+        let pvk = Groth16::process_vk(&vk)?;
         total_setup += start.elapsed();
 
         // proof_vec.truncate(0);
         let start = Instant::now();
-        let proof = {
-            // Create an instance of our circuit (with the witness)
-            let c = Benchmark::new(num_constraints);
-            // Create a proof with our parameters.
-            Groth16::prove(&pk, &c, rng)?
-        };
+        // Create an instance of our circuit (with the witness)
+        let c = Benchmark::new(num_constraints);
+        // Create a proof with our parameters.
+        let proof = Groth16::prove_with_cs(&pk, &c, rng)?;
 
         total_proving += start.elapsed();
-
-        let inputs: Vec<_> = [Fr::one(); 2].to_vec();
 
         let start = Instant::now();
         // let proof = Proof::read(&proof_vec[..]).unwrap();
