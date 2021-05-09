@@ -1,4 +1,5 @@
 ## Pending
+- [\#30](https://github.com/arkworks-rs/groth16/pull/30) Add proof input preprocessing.
 
 ### Breaking changes
 - [\#21](https://github.com/arkworks-rs/groth16/pull/21) Change the `generate_parameters` interface to take generators as input.
