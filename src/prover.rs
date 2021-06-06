@@ -86,7 +86,11 @@ where
 
     let l_aux_acc = VariableBaseMSM::multi_scalar_mul(&pk.l_query, &aux_assignment);
 
-    let r_s_delta_g1 = pk.delta_g1.into_projective().mul(&r.into_repr()).mul(&s.into_repr());
+    let r_s_delta_g1 = pk
+        .delta_g1
+        .into_projective()
+        .mul(&r.into_repr())
+        .mul(&s.into_repr());
 
     end_timer!(c_acc_time);
 
