@@ -1,10 +1,24 @@
+# CHANGELOG
+
 ## Pending
-- [\#30](https://github.com/arkworks-rs/groth16/pull/30) Add proof input preprocessing.
 
 ### Breaking changes
+
+### Features
+
+### Improvements
+
+### Bug fixes
+
+## v0.3.0
+
+### Breaking changes
+
 - [\#21](https://github.com/arkworks-rs/groth16/pull/21) Change the `generate_parameters` interface to take generators as input.
 
 ### Features
+
+- [\#30](https://github.com/arkworks-rs/groth16/pull/30) Add proof input preprocessing.
 
 ### Improvements
 
