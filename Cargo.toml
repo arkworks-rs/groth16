@@ -1,6 +1,6 @@
 [package]
 name = "ark-groth16"
-version = "0.2.0"
+version = "0.3.0"
 authors = [ "arkworks contributors" ]
 description = "An implementation of the Groth 2016 zkSNARK proof system"
 homepage = "https://arkworks.rs"
@@ -15,14 +15,14 @@ edition = "2018"
 ################################# Dependencies ################################
 
 [dependencies]
-ark-ff = { version = "^0.2.0", default-features = false }
-ark-ec = { version = "^0.2.0", default-features = false }
-ark-serialize = { version = "^0.2.0", default-features = false, features = [ "derive" ] }
-ark-poly = { version = "^0.2.0", default-features = false }
-ark-std = { version = "^0.2.0", default-features = false }
-ark-relations = { version = "^0.2.0", default-features = false }
-ark-crypto-primitives = { version = "^0.2.0", default-features = false }
-ark-r1cs-std = { version = "^0.2.0", default-features = false, optional = true }
+ark-ff = { version = "^0.3.0", default-features = false }
+ark-ec = { version = "^0.3.0", default-features = false }
+ark-serialize = { version = "^0.3.0", default-features = false, features = [ "derive" ] }
+ark-poly = { version = "^0.3.0", default-features = false }
+ark-std = { version = "^0.3.0", default-features = false }
+ark-relations = { version = "^0.3.0", default-features = false }
+ark-crypto-primitives = { version = "^0.3.0", default-features = false }
+ark-r1cs-std = { version = "^0.3.0", default-features = false, optional = true }
 
 tracing = { version = "0.1", default-features = false, features = [ "attributes" ], optional = true }
 derivative = { version = "2.0", features = ["use_core"], optional = true}
@@ -31,13 +31,13 @@ rayon = { version = "1", optional = true }
 
 [dev-dependencies]
 csv = { version = "1" }
-ark-bls12-381 = { version = "^0.2.0", default-features = false, features = ["curve"] }
-ark-bls12-377 = { version = "^0.2.0", default-features = false, features = ["curve"] }
-ark-cp6-782 = { version = "^0.2.0", default-features = false }
-ark-mnt4-298 = { version = "^0.2.0", default-features = false, features = ["r1cs", "curve"] }
-ark-mnt6-298 = { version = "^0.2.0", default-features = false, features = ["r1cs"] }
-ark-mnt4-753 = { version = "^0.2.0", default-features = false, features = ["r1cs", "curve"] }
-ark-mnt6-753 = { version = "^0.2.0", default-features = false, features = ["r1cs"] }
+ark-bls12-381 = { version = "^0.3.0", default-features = false, features = ["curve"] }
+ark-bls12-377 = { version = "^0.3.0", default-features = false, features = ["curve"] }
+ark-cp6-782 = { version = "^0.3.0", default-features = false }
+ark-mnt4-298 = { version = "^0.3.0", default-features = false, features = ["r1cs", "curve"] }
+ark-mnt6-298 = { version = "^0.3.0", default-features = false, features = ["r1cs"] }
+ark-mnt4-753 = { version = "^0.3.0", default-features = false, features = ["r1cs", "curve"] }
+ark-mnt6-753 = { version = "^0.3.0", default-features = false, features = ["r1cs"] }
 
 [profile.release]
 opt-level = 3
