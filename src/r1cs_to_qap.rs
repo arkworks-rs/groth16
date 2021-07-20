@@ -41,7 +41,7 @@ where
     return res;
 }
 
-pub(crate) struct R1CStoQAP;
+pub struct R1CStoQAP;
 
 pub trait QAPCalculator {
     fn instance_map_with_evaluation<F: PrimeField, D: EvaluationDomain<F>>(
