@@ -1,4 +1,7 @@
-use crate::{r1cs_to_qap::R1CStoQAP, Proof, ProvingKey, VerifyingKey};
+use crate::{
+    r1cs_to_qap::{QAPCalculator, R1CStoQAP},
+    Proof, ProvingKey, VerifyingKey,
+};
 use ark_ec::{msm::VariableBaseMSM, AffineCurve, PairingEngine, ProjectiveCurve};
 use ark_ff::{Field, PrimeField, UniformRand, Zero};
 use ark_poly::GeneralEvaluationDomain;
@@ -13,7 +16,6 @@ use rayon::prelude::*;
 
 /// Create a Groth16 proof that is zero-knowledge.
 /// This method samples randomness for zero knowledges via `rng`.
-#[inline]
 pub fn create_random_proof<E, C, R>(
     circuit: C,
     pk: &ProvingKey<E>,
@@ -24,24 +26,55 @@ where
     C: ConstraintSynthesizer<E::Fr>,
     R: Rng,
 {
+    create_random_proof_with_qap::<E, C, R, R1CStoQAP>(circuit, pk, rng)
+}
+
+/// Create a Groth16 proof that is zero-knowledge using the provided QAP calculator.
+/// This method samples randomness for zero knowledges via `rng`.
+#[inline]
+pub fn create_random_proof_with_qap<E, C, R, QAP>(
+    circuit: C,
+    pk: &ProvingKey<E>,
+    rng: &mut R,
+) -> R1CSResult<Proof<E>>
+where
+    E: PairingEngine,
+    C: ConstraintSynthesizer<E::Fr>,
+    R: Rng,
+    QAP: QAPCalculator,
+{
     let r = E::Fr::rand(rng);
     let s = E::Fr::rand(rng);
 
-    create_proof::<E, C>(circuit, pk, r, s)
+    create_proof_with_qap::<E, C, QAP>(circuit, pk, r, s)
 }
 
-/// Create a Groth16 proof that is *not* zero-knowledge.
 #[inline]
+/// Create a Groth16 proof that is *not* zero-knowledge
 pub fn create_proof_no_zk<E, C>(circuit: C, pk: &ProvingKey<E>) -> R1CSResult<Proof<E>>
 where
     E: PairingEngine,
     C: ConstraintSynthesizer<E::Fr>,
 {
-    create_proof::<E, C>(circuit, pk, E::Fr::zero(), E::Fr::zero())
+    create_proof_with_qap::<E, C, R1CStoQAP>(circuit, pk, E::Fr::zero(), E::Fr::zero())
 }
 
-/// Create a Groth16 proof using randomness `r` and `s`.
+/// Create a Groth16 proof that is *not* zero-knowledge with the provided QAP calculator
 #[inline]
+pub fn create_proof_with_qap_no_zk<E, C, QAP>(
+    circuit: C,
+    pk: &ProvingKey<E>,
+) -> R1CSResult<Proof<E>>
+where
+    E: PairingEngine,
+    C: ConstraintSynthesizer<E::Fr>,
+    QAP: QAPCalculator,
+{
+    create_proof_with_qap::<E, C, QAP>(circuit, pk, E::Fr::zero(), E::Fr::zero())
+}
+
+#[inline]
+/// Create a Groth16 proof using randomness `r` and `s`.
 pub fn create_proof<E, C>(
     circuit: C,
     pk: &ProvingKey<E>,
@@ -51,6 +84,22 @@ pub fn create_proof<E, C>(
 where
     E: PairingEngine,
     C: ConstraintSynthesizer<E::Fr>,
+{
+    create_proof_with_qap::<E, C, R1CStoQAP>(circuit, pk, r, s)
+}
+
+/// Create a Groth16 proof using randomness `r` and `s` and the provided QAP calculator.
+#[inline]
+pub fn create_proof_with_qap<E, C, QAP>(
+    circuit: C,
+    pk: &ProvingKey<E>,
+    r: E::Fr,
+    s: E::Fr,
+) -> R1CSResult<Proof<E>>
+where
+    E: PairingEngine,
+    C: ConstraintSynthesizer<E::Fr>,
+    QAP: QAPCalculator,
 {
     type D<F> = GeneralEvaluationDomain<F>;
 
@@ -71,7 +120,7 @@ where
     end_timer!(lc_time);
 
     let witness_map_time = start_timer!(|| "R1CS to QAP witness map");
-    let h = R1CStoQAP::witness_map::<E::Fr, D<E::Fr>>(cs.clone())?;
+    let h = QAP::witness_map::<E::Fr, D<E::Fr>>(cs.clone())?;
     end_timer!(witness_map_time);
     let h_assignment = cfg_into_iter!(h).map(|s| s.into()).collect::<Vec<_>>();
     let c_acc_time = start_timer!(|| "Compute C");

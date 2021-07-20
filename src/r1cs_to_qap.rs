@@ -43,10 +43,21 @@ where
 
 pub(crate) struct R1CStoQAP;
 
-impl R1CStoQAP {
+pub trait QAPCalculator {
+    fn instance_map_with_evaluation<F: PrimeField, D: EvaluationDomain<F>>(
+        cs: ConstraintSystemRef<F>,
+        t: &F,
+    ) -> Result<(Vec<F>, Vec<F>, Vec<F>, F, usize, usize), SynthesisError>;
+
+    fn witness_map<F: PrimeField, D: EvaluationDomain<F>>(
+        prover: ConstraintSystemRef<F>,
+    ) -> Result<Vec<F>, SynthesisError>;
+}
+
+impl QAPCalculator for R1CStoQAP {
     #[inline]
     #[allow(clippy::type_complexity)]
-    pub(crate) fn instance_map_with_evaluation<F: PrimeField, D: EvaluationDomain<F>>(
+    fn instance_map_with_evaluation<F: PrimeField, D: EvaluationDomain<F>>(
         cs: ConstraintSystemRef<F>,
         t: &F,
     ) -> R1CSResult<(Vec<F>, Vec<F>, Vec<F>, F, usize, usize)> {
@@ -91,7 +102,7 @@ impl R1CStoQAP {
     }
 
     #[inline]
-    pub(crate) fn witness_map<F: PrimeField, D: EvaluationDomain<F>>(
+    fn witness_map<F: PrimeField, D: EvaluationDomain<F>>(
         prover: ConstraintSystemRef<F>,
     ) -> R1CSResult<Vec<F>> {
         let matrices = prover.to_matrices().unwrap();
