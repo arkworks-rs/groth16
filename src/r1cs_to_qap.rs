@@ -10,7 +10,7 @@ use core::ops::{AddAssign, Deref};
 use rayon::prelude::*;
 
 #[inline]
-fn evaluate_constraint<'a, LHS, RHS, R>(terms: &'a [(LHS, usize)], assignment: &'a [RHS]) -> R
+pub fn evaluate_constraint<'a, LHS, RHS, R>(terms: &'a [(LHS, usize)], assignment: &'a [RHS]) -> R
 where
     LHS: One + Send + Sync + PartialEq,
     RHS: Send + Sync + core::ops::Mul<&'a LHS, Output = RHS> + Copy,
