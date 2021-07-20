@@ -1,4 +1,7 @@
-use crate::{r1cs_to_qap::R1CStoQAP, ProvingKey, Vec, VerifyingKey};
+use crate::{
+    r1cs_to_qap::{QAPCalculator, R1CStoQAP},
+    ProvingKey, Vec, VerifyingKey,
+};
 use ark_ec::{msm::FixedBaseMSM, PairingEngine, ProjectiveCurve};
 use ark_ff::{Field, PrimeField, UniformRand, Zero};
 use ark_poly::{EvaluationDomain, GeneralEvaluationDomain};
@@ -12,14 +15,30 @@ use ark_std::{cfg_into_iter, cfg_iter};
 #[cfg(feature = "parallel")]
 use rayon::prelude::*;
 
+#[inline]
 /// Generates a random common reference string for
 /// a circuit.
-#[inline]
 pub fn generate_random_parameters<E, C, R>(circuit: C, rng: &mut R) -> R1CSResult<ProvingKey<E>>
 where
     E: PairingEngine,
     C: ConstraintSynthesizer<E::Fr>,
     R: Rng,
+{
+    generate_random_parameters_with_qap::<E, C, R, R1CStoQAP>(circuit, rng)
+}
+
+/// Generates a random common reference string for
+/// a circuit using the provided R1CS to QAP calculator
+#[inline]
+pub fn generate_random_parameters_with_qap<E, C, R, QAP>(
+    circuit: C,
+    rng: &mut R,
+) -> R1CSResult<ProvingKey<E>>
+where
+    E: PairingEngine,
+    C: ConstraintSynthesizer<E::Fr>,
+    R: Rng,
+    QAP: QAPCalculator,
 {
     let alpha = E::Fr::rand(rng);
     let beta = E::Fr::rand(rng);
@@ -29,7 +48,7 @@ where
     let g1_generator = E::G1Projective::rand(rng);
     let g2_generator = E::G2Projective::rand(rng);
 
-    generate_parameters::<E, C, R>(
+    generate_parameters_with_qap::<E, C, R, QAP>(
         circuit,
         alpha,
         beta,
@@ -41,7 +60,7 @@ where
     )
 }
 
-/// Create parameters for a circuit, given some toxic waste and group generators
+/// Create parameters for a circuit, given some toxic waste, and group generators
 pub fn generate_parameters<E, C, R>(
     circuit: C,
     alpha: E::Fr,
@@ -56,6 +75,35 @@ where
     E: PairingEngine,
     C: ConstraintSynthesizer<E::Fr>,
     R: Rng,
+{
+    generate_parameters_with_qap::<E, C, R, R1CStoQAP>(
+        circuit,
+        alpha,
+        beta,
+        gamma,
+        delta,
+        g1_generator,
+        g2_generator,
+        rng,
+    )
+}
+
+/// Create parameters for a circuit, given some toxic waste, R1CS to QAP calculator and group generators
+pub fn generate_parameters_with_qap<E, C, R, QAP>(
+    circuit: C,
+    alpha: E::Fr,
+    beta: E::Fr,
+    gamma: E::Fr,
+    delta: E::Fr,
+    g1_generator: E::G1Projective,
+    g2_generator: E::G2Projective,
+    rng: &mut R,
+) -> R1CSResult<ProvingKey<E>>
+where
+    E: PairingEngine,
+    C: ConstraintSynthesizer<E::Fr>,
+    R: Rng,
+    QAP: QAPCalculator,
 {
     type D<F> = GeneralEvaluationDomain<F>;
 
@@ -86,7 +134,7 @@ where
     let reduction_time = start_timer!(|| "R1CS to QAP Instance Map with Evaluation");
     let num_instance_variables = cs.num_instance_variables();
     let (a, b, c, zt, qap_num_variables, m_raw) =
-        R1CStoQAP::instance_map_with_evaluation::<E::Fr, D<E::Fr>>(cs, &t)?;
+        QAP::instance_map_with_evaluation::<E::Fr, D<E::Fr>>(cs, &t)?;
     end_timer!(reduction_time);
 
     // Compute query densities

@@ -20,7 +20,7 @@ extern crate ark_std;
 extern crate derivative;
 
 /// Reduce an R1CS instance to a *Quadratic Arithmetic Program* instance.
-pub(crate) mod r1cs_to_qap;
+pub mod r1cs_to_qap;
 
 /// Data structures used by the prover, verifier, and generator.
 pub mod data_structures;
