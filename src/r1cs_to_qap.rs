@@ -52,6 +52,13 @@ pub trait QAPCalculator {
     fn witness_map<F: PrimeField, D: EvaluationDomain<F>>(
         prover: ConstraintSystemRef<F>,
     ) -> Result<Vec<F>, SynthesisError>;
+
+    fn h_query_scalars<F: PrimeField, D: EvaluationDomain<F>>(
+        max_power: usize,
+        t: F,
+        zt: F,
+        delta_inverse: F,
+    ) -> Result<Vec<F>, SynthesisError>;
 }
 
 impl QAPCalculator for R1CStoQAP {
@@ -168,5 +175,17 @@ impl QAPCalculator for R1CStoQAP {
         domain.coset_ifft_in_place(&mut ab);
 
         Ok(ab)
+    }
+
+    fn h_query_scalars<F: PrimeField, D: EvaluationDomain<F>>(
+        max_power: usize,
+        t: F,
+        zt: F,
+        delta_inverse: F,
+    ) -> Result<Vec<F>, SynthesisError> {
+        let scalars = cfg_into_iter!(0..max_power)
+            .map(|i| zt * &delta_inverse * &t.pow([i as u64]))
+            .collect::<Vec<_>>();
+        Ok(scalars)
     }
 }
