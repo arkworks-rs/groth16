@@ -216,9 +216,7 @@ where
         scalar_bits,
         g1_window,
         &g1_table,
-        &cfg_into_iter!(0..m_raw - 1)
-            .map(|i| zt * &delta_inverse * &t.pow([i as u64]))
-            .collect::<Vec<_>>(),
+        &QAP::h_query_scalars::<_, D<E::Fr>>(m_raw - 1, t, zt, delta_inverse)?,
     );
 
     end_timer!(h_time);
