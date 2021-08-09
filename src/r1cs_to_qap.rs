@@ -41,9 +41,7 @@ where
     return res;
 }
 
-pub struct R1CStoQAP;
-
-pub trait QAPCalculator {
+pub trait R1CStoQAP {
     fn instance_map_with_evaluation<F: PrimeField, D: EvaluationDomain<F>>(
         cs: ConstraintSystemRef<F>,
         t: &F,
@@ -61,7 +59,9 @@ pub trait QAPCalculator {
     ) -> Result<Vec<F>, SynthesisError>;
 }
 
-impl QAPCalculator for R1CStoQAP {
+pub(crate) struct LibsnarkReduction;
+
+impl R1CStoQAP for LibsnarkReduction {
     #[inline]
     #[allow(clippy::type_complexity)]
     fn instance_map_with_evaluation<F: PrimeField, D: EvaluationDomain<F>>(

@@ -1,5 +1,5 @@
 use crate::{
-    r1cs_to_qap::{QAPCalculator, R1CStoQAP},
+    r1cs_to_qap::{LibsnarkReduction, R1CStoQAP},
     Proof, ProvingKey, VerifyingKey,
 };
 use ark_ec::{msm::VariableBaseMSM, AffineCurve, PairingEngine, ProjectiveCurve};
@@ -26,7 +26,7 @@ where
     C: ConstraintSynthesizer<E::Fr>,
     R: Rng,
 {
-    create_random_proof_with_qap::<E, C, R, R1CStoQAP>(circuit, pk, rng)
+    create_random_proof_with_qap::<E, C, R, LibsnarkReduction>(circuit, pk, rng)
 }
 
 /// Create a Groth16 proof that is zero-knowledge using the provided QAP calculator.
@@ -41,7 +41,7 @@ where
     E: PairingEngine,
     C: ConstraintSynthesizer<E::Fr>,
     R: Rng,
-    QAP: QAPCalculator,
+    QAP: R1CStoQAP,
 {
     let r = E::Fr::rand(rng);
     let s = E::Fr::rand(rng);
@@ -56,7 +56,7 @@ where
     E: PairingEngine,
     C: ConstraintSynthesizer<E::Fr>,
 {
-    create_proof_with_qap::<E, C, R1CStoQAP>(circuit, pk, E::Fr::zero(), E::Fr::zero())
+    create_proof_with_qap::<E, C, LibsnarkReduction>(circuit, pk, E::Fr::zero(), E::Fr::zero())
 }
 
 /// Create a Groth16 proof that is *not* zero-knowledge with the provided QAP calculator
@@ -68,7 +68,7 @@ pub fn create_proof_with_qap_no_zk<E, C, QAP>(
 where
     E: PairingEngine,
     C: ConstraintSynthesizer<E::Fr>,
-    QAP: QAPCalculator,
+    QAP: R1CStoQAP,
 {
     create_proof_with_qap::<E, C, QAP>(circuit, pk, E::Fr::zero(), E::Fr::zero())
 }
@@ -85,7 +85,7 @@ where
     E: PairingEngine,
     C: ConstraintSynthesizer<E::Fr>,
 {
-    create_proof_with_qap::<E, C, R1CStoQAP>(circuit, pk, r, s)
+    create_proof_with_qap::<E, C, LibsnarkReduction>(circuit, pk, r, s)
 }
 
 /// Create a Groth16 proof using randomness `r` and `s` and the provided QAP calculator.
@@ -99,7 +99,7 @@ pub fn create_proof_with_qap<E, C, QAP>(
 where
     E: PairingEngine,
     C: ConstraintSynthesizer<E::Fr>,
-    QAP: QAPCalculator,
+    QAP: R1CStoQAP,
 {
     type D<F> = GeneralEvaluationDomain<F>;
 

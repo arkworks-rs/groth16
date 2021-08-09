@@ -1,5 +1,5 @@
 use crate::{
-    r1cs_to_qap::{QAPCalculator, R1CStoQAP},
+    r1cs_to_qap::{LibsnarkReduction, R1CStoQAP},
     ProvingKey, Vec, VerifyingKey,
 };
 use ark_ec::{msm::FixedBaseMSM, PairingEngine, ProjectiveCurve};
@@ -24,7 +24,7 @@ where
     C: ConstraintSynthesizer<E::Fr>,
     R: Rng,
 {
-    generate_random_parameters_with_qap::<E, C, R, R1CStoQAP>(circuit, rng)
+    generate_random_parameters_with_qap::<E, C, R, LibsnarkReduction>(circuit, rng)
 }
 
 /// Generates a random common reference string for
@@ -38,7 +38,7 @@ where
     E: PairingEngine,
     C: ConstraintSynthesizer<E::Fr>,
     R: Rng,
-    QAP: QAPCalculator,
+    QAP: R1CStoQAP,
 {
     let alpha = E::Fr::rand(rng);
     let beta = E::Fr::rand(rng);
@@ -76,7 +76,7 @@ where
     C: ConstraintSynthesizer<E::Fr>,
     R: Rng,
 {
-    generate_parameters_with_qap::<E, C, R, R1CStoQAP>(
+    generate_parameters_with_qap::<E, C, R, LibsnarkReduction>(
         circuit,
         alpha,
         beta,
@@ -103,7 +103,7 @@ where
     E: PairingEngine,
     C: ConstraintSynthesizer<E::Fr>,
     R: Rng,
-    QAP: QAPCalculator,
+    QAP: R1CStoQAP,
 {
     type D<F> = GeneralEvaluationDomain<F>;
 
