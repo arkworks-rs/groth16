@@ -42,20 +42,22 @@ where
     return res;
 }
 
-/// Computes instance and witness reductions from R1CS to 
+/// Computes instance and witness reductions from R1CS to
 /// Quadratic Arithmetic Programs (QAPs).
 pub trait R1CStoQAP {
-	/// Computes a QAP instance corresponding to the R1CS instance defined by `cs`.
+    /// Computes a QAP instance corresponding to the R1CS instance defined by `cs`.
     fn instance_map_with_evaluation<F: PrimeField, D: EvaluationDomain<F>>(
         cs: ConstraintSystemRef<F>,
         t: &F,
     ) -> Result<(Vec<F>, Vec<F>, Vec<F>, F, usize, usize), SynthesisError>;
 
-	/// Computes a QAP witness corresponding to the R1CS witness defined by `cs`.
+    /// Computes a QAP witness corresponding to the R1CS witness defined by `cs`.
     fn witness_map<F: PrimeField, D: EvaluationDomain<F>>(
         prover: ConstraintSystemRef<F>,
     ) -> Result<Vec<F>, SynthesisError>;
 
+    /// Computes the exponents that the generator uses to calculate base
+    /// elements which the prover later uses to compute `h(x)t(x)/delta`.
     fn h_query_scalars<F: PrimeField, D: EvaluationDomain<F>>(
         max_power: usize,
         t: F,
