@@ -10,6 +10,7 @@ use core::ops::{AddAssign, Deref};
 use rayon::prelude::*;
 
 #[inline]
+/// Computes the inner product of `terms` with `assignment`.
 pub fn evaluate_constraint<'a, LHS, RHS, R>(terms: &'a [(LHS, usize)], assignment: &'a [RHS]) -> R
 where
     LHS: One + Send + Sync + PartialEq,
@@ -41,12 +42,16 @@ where
     return res;
 }
 
+/// Computes instance and witness reductions from R1CS to 
+/// Quadratic Arithmetic Programs (QAPs).
 pub trait R1CStoQAP {
+	/// Computes a QAP instance corresponding to the R1CS instance defined by `cs`.
     fn instance_map_with_evaluation<F: PrimeField, D: EvaluationDomain<F>>(
         cs: ConstraintSystemRef<F>,
         t: &F,
     ) -> Result<(Vec<F>, Vec<F>, Vec<F>, F, usize, usize), SynthesisError>;
 
+	/// Computes a QAP witness corresponding to the R1CS witness defined by `cs`.
     fn witness_map<F: PrimeField, D: EvaluationDomain<F>>(
         prover: ConstraintSystemRef<F>,
     ) -> Result<Vec<F>, SynthesisError>;
@@ -59,7 +64,8 @@ pub trait R1CStoQAP {
     ) -> Result<Vec<F>, SynthesisError>;
 }
 
-pub(crate) struct LibsnarkReduction;
+/// Computes the R1CS-to-QAP reduction defined in [`libsnark`](https://github.com/scipr-lab/libsnark/blob/2af440246fa2c3d0b1b0a425fb6abd8cc8b9c54d/libsnark/reductions/r1cs_to_qap/r1cs_to_qap.tcc).
+pub struct LibsnarkReduction;
 
 impl R1CStoQAP for LibsnarkReduction {
     #[inline]
