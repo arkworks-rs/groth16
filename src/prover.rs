@@ -26,13 +26,14 @@ where
     C: ConstraintSynthesizer<E::Fr>,
     R: Rng,
 {
-    create_random_proof_with_qap::<E, C, R, LibsnarkReduction>(circuit, pk, rng)
+    create_random_proof_with_reduction::<E, C, R, LibsnarkReduction>(circuit, pk, rng)
 }
 
-/// Create a Groth16 proof that is zero-knowledge using the provided QAP calculator.
+/// Create a Groth16 proof that is zero-knowledge using the provided
+/// R1CS-to-QAP reduction.
 /// This method samples randomness for zero knowledges via `rng`.
 #[inline]
-pub fn create_random_proof_with_qap<E, C, R, QAP>(
+pub fn create_random_proof_with_reduction<E, C, R, QAP>(
     circuit: C,
     pk: &ProvingKey<E>,
     rng: &mut R,
@@ -46,22 +47,23 @@ where
     let r = E::Fr::rand(rng);
     let s = E::Fr::rand(rng);
 
-    create_proof_with_qap::<E, C, QAP>(circuit, pk, r, s)
+    create_proof_with_reduction::<E, C, QAP>(circuit, pk, r, s)
 }
 
 #[inline]
-/// Create a Groth16 proof that is *not* zero-knowledge
+/// Create a Groth16 proof that is *not* zero-knowledge.
 pub fn create_proof_no_zk<E, C>(circuit: C, pk: &ProvingKey<E>) -> R1CSResult<Proof<E>>
 where
     E: PairingEngine,
     C: ConstraintSynthesizer<E::Fr>,
 {
-    create_proof_with_qap::<E, C, LibsnarkReduction>(circuit, pk, E::Fr::zero(), E::Fr::zero())
+    create_proof_with_reduction_no_zk::<E, C, LibsnarkReduction>(circuit, pk)
 }
 
-/// Create a Groth16 proof that is *not* zero-knowledge with the provided QAP calculator
+/// Create a Groth16 proof that is *not* zero-knowledge with the provided
+/// R1CS-to-QAP reduction.
 #[inline]
-pub fn create_proof_with_qap_no_zk<E, C, QAP>(
+pub fn create_proof_with_reduction_no_zk<E, C, QAP>(
     circuit: C,
     pk: &ProvingKey<E>,
 ) -> R1CSResult<Proof<E>>
@@ -70,7 +72,7 @@ where
     C: ConstraintSynthesizer<E::Fr>,
     QAP: R1CStoQAP,
 {
-    create_proof_with_qap::<E, C, QAP>(circuit, pk, E::Fr::zero(), E::Fr::zero())
+    create_proof_with_reduction::<E, C, QAP>(circuit, pk, E::Fr::zero(), E::Fr::zero())
 }
 
 #[inline]
@@ -85,12 +87,13 @@ where
     E: PairingEngine,
     C: ConstraintSynthesizer<E::Fr>,
 {
-    create_proof_with_qap::<E, C, LibsnarkReduction>(circuit, pk, r, s)
+    create_proof_with_reduction::<E, C, LibsnarkReduction>(circuit, pk, r, s)
 }
 
-/// Create a Groth16 proof using randomness `r` and `s` and the provided QAP calculator.
+/// Create a Groth16 proof using randomness `r` and `s` and the provided
+/// R1CS-to-QAP reduction.
 #[inline]
-pub fn create_proof_with_qap<E, C, QAP>(
+pub fn create_proof_with_reduction<E, C, QAP>(
     circuit: C,
     pk: &ProvingKey<E>,
     r: E::Fr,

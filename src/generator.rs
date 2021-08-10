@@ -24,13 +24,13 @@ where
     C: ConstraintSynthesizer<E::Fr>,
     R: Rng,
 {
-    generate_random_parameters_with_qap::<E, C, R, LibsnarkReduction>(circuit, rng)
+    generate_random_parameters_with_reduction::<E, C, R, LibsnarkReduction>(circuit, rng)
 }
 
 /// Generates a random common reference string for
-/// a circuit using the provided R1CS to QAP calculator
+/// a circuit using the provided R1CS-to-QAP reduction.
 #[inline]
-pub fn generate_random_parameters_with_qap<E, C, R, QAP>(
+pub fn generate_random_parameters_with_reduction<E, C, R, QAP>(
     circuit: C,
     rng: &mut R,
 ) -> R1CSResult<ProvingKey<E>>
