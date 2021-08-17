@@ -3,7 +3,9 @@ use ark_poly::EvaluationDomain;
 use ark_std::{cfg_iter, cfg_iter_mut, vec};
 
 use crate::Vec;
-use ark_relations::r1cs::{ConstraintSystemRef, Result as R1CSResult, SynthesisError, ConstraintMatrices};
+use ark_relations::r1cs::{
+    ConstraintMatrices, ConstraintSystemRef, Result as R1CSResult, SynthesisError,
+};
 use core::ops::{AddAssign, Deref};
 
 #[cfg(feature = "parallel")]
@@ -51,7 +53,7 @@ pub trait R1CStoQAP {
         t: &F,
     ) -> Result<(Vec<F>, Vec<F>, Vec<F>, F, usize, usize), SynthesisError>;
 
-     #[inline]
+    #[inline]
     /// Computes a QAP witness corresponding to the R1CS witness defined by `cs`.
     fn witness_map<F: PrimeField, D: EvaluationDomain<F>>(
         prover: ConstraintSystemRef<F>,
@@ -67,9 +69,14 @@ pub trait R1CStoQAP {
             prover.instance_assignment.as_slice(),
             prover.witness_assignment.as_slice(),
         ]
-            .concat();
+        .concat();
 
-        Self::witness_map_from_matrices::<F, D>(&matrices, num_inputs, num_constraints, &full_assignment)
+        Self::witness_map_from_matrices::<F, D>(
+            &matrices,
+            num_inputs,
+            num_constraints,
+            &full_assignment,
+        )
     }
 
     /// Computes a QAP witness corresponding to the R1CS witness defined by `cs`.
@@ -79,7 +86,6 @@ pub trait R1CStoQAP {
         num_constraints: usize,
         full_assignment: &[F],
     ) -> R1CSResult<Vec<F>>;
-
 
     /// Computes the exponents that the generator uses to calculate base
     /// elements which the prover later uses to compute `h(x)t(x)/delta`.
