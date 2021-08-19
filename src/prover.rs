@@ -32,9 +32,11 @@ where
 
 type D<F> = GeneralEvaluationDomain<F>;
 
-/// Create a Groth16 proof using randomness `r` and `s` and the provided QAP calculator.
+/// Create a Groth16 proof using randomness `r` and `s` and 
+/// the provided R1CS-to-QAP reduction, using the provided
+/// R1CS constraint matrices.
 #[inline]
-pub fn create_proof_with_qap_and_matrices<E, QAP>(
+pub fn create_proof_with_reduction_and_matrices<E, QAP>(
     pk: &ProvingKey<E>,
     r: E::Fr,
     s: E::Fr,
