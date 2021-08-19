@@ -32,7 +32,7 @@ where
 
 type D<F> = GeneralEvaluationDomain<F>;
 
-/// Create a Groth16 proof using randomness `r` and `s` and 
+/// Create a Groth16 proof using randomness `r` and `s` and
 /// the provided R1CS-to-QAP reduction, using the provided
 /// R1CS constraint matrices.
 #[inline]
