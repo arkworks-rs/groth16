@@ -121,6 +121,15 @@ where
     cs.finalize();
     end_timer!(lc_time);
 
+    // Following is the mapping of symbols from the Groth16 paper to this implementation
+    // l -> num_instance_variables
+    // m -> qap_num_variables
+    // x -> t
+    // t(x) - zt
+    // u_i(x) -> a
+    // v_i(x) -> b
+    // w_i(x) -> c
+
     ///////////////////////////////////////////////////////////////////////////
     let domain_time = start_timer!(|| "Constructing evaluation domain");
 
@@ -157,9 +166,9 @@ where
         .map(|((a, b), c)| (beta * a + &(alpha * b) + c) * &gamma_inverse)
         .collect::<Vec<_>>();
 
-    let l = cfg_iter!(a)
-        .zip(&b)
-        .zip(&c)
+    let l = cfg_iter!(a[num_instance_variables..])
+        .zip(&b[num_instance_variables..])
+        .zip(&c[num_instance_variables..])
         .map(|((a, b), c)| (beta * a + &(alpha * b) + c) * &delta_inverse)
         .collect::<Vec<_>>();
 
@@ -223,12 +232,8 @@ where
 
     // Compute the L-query
     let l_time = start_timer!(|| "Calculate L");
-    let l_query = FixedBaseMSM::multi_scalar_mul::<E::G1Projective>(
-        scalar_bits,
-        g1_window,
-        &g1_table,
-        &l[num_instance_variables..],
-    );
+    let l_query =
+        FixedBaseMSM::multi_scalar_mul::<E::G1Projective>(scalar_bits, g1_window, &g1_table, &l);
     drop(l);
     end_timer!(l_time);
 

@@ -16,7 +16,7 @@ use ark_std::{cfg_into_iter, cfg_iter, vec::Vec};
 use rayon::prelude::*;
 
 /// Create a Groth16 proof that is zero-knowledge.
-/// This method samples randomness for zero knowledges via `rng`.
+/// This method samples randomness for zero knowledge via `rng`.
 pub fn create_random_proof<E, C, R>(
     circuit: C,
     pk: &ProvingKey<E>,
