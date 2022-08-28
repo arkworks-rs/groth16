@@ -1,10 +1,6 @@
 use ark_ec::PairingEngine;
-use ark_ff::bytes::ToBytes;
 use ark_serialize::*;
-use ark_std::{
-    io::{self, Result as IoResult},
-    vec::Vec,
-};
+use ark_std::vec::Vec;
 
 /// A proof in the Groth16 SNARK.
 #[derive(Clone, Debug, PartialEq, CanonicalSerialize, CanonicalDeserialize)]
@@ -15,15 +11,6 @@ pub struct Proof<E: PairingEngine> {
     pub b: E::G2Affine,
     /// The `C` element in `G1`.
     pub c: E::G1Affine,
-}
-
-impl<E: PairingEngine> ToBytes for Proof<E> {
-    #[inline]
-    fn write<W: Write>(&self, mut writer: W) -> io::Result<()> {
-        self.a.write(&mut writer)?;
-        self.b.write(&mut writer)?;
-        self.c.write(&mut writer)
-    }
 }
 
 impl<E: PairingEngine> Default for Proof<E> {
@@ -54,19 +41,6 @@ pub struct VerifyingKey<E: PairingEngine> {
     pub gamma_abc_g1: Vec<E::G1Affine>,
 }
 
-impl<E: PairingEngine> ToBytes for VerifyingKey<E> {
-    fn write<W: Write>(&self, mut writer: W) -> IoResult<()> {
-        self.alpha_g1.write(&mut writer)?;
-        self.beta_g2.write(&mut writer)?;
-        self.gamma_g2.write(&mut writer)?;
-        self.delta_g2.write(&mut writer)?;
-        for q in &self.gamma_abc_g1 {
-            q.write(&mut writer)?;
-        }
-        Ok(())
-    }
-}
-
 impl<E: PairingEngine> Default for VerifyingKey<E> {
     fn default() -> Self {
         Self {
@@ -81,7 +55,7 @@ impl<E: PairingEngine> Default for VerifyingKey<E> {
 
 /// Preprocessed verification key parameters that enable faster verification
 /// at the expense of larger size in memory.
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, CanonicalSerialize, CanonicalDeserialize)]
 pub struct PreparedVerifyingKey<E: PairingEngine> {
     /// The unprepared verification key.
     pub vk: VerifyingKey<E>,
@@ -113,16 +87,6 @@ impl<E: PairingEngine> Default for PreparedVerifyingKey<E> {
             gamma_g2_neg_pc: E::G2Prepared::default(),
             delta_g2_neg_pc: E::G2Prepared::default(),
         }
-    }
-}
-
-impl<E: PairingEngine> ToBytes for PreparedVerifyingKey<E> {
-    fn write<W: Write>(&self, mut writer: W) -> IoResult<()> {
-        self.vk.write(&mut writer)?;
-        self.alpha_g1_beta_g2.write(&mut writer)?;
-        self.gamma_g2_neg_pc.write(&mut writer)?;
-        self.delta_g2_neg_pc.write(&mut writer)?;
-        Ok(())
     }
 }
 

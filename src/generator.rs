@@ -2,7 +2,7 @@ use crate::{
     r1cs_to_qap::{LibsnarkReduction, R1CStoQAP},
     ProvingKey, Vec, VerifyingKey,
 };
-use ark_ec::{msm::FixedBaseMSM, PairingEngine, ProjectiveCurve};
+use ark_ec::{msm::FixedBase, PairingEngine, ProjectiveCurve};
 use ark_ff::{Field, PrimeField, UniformRand, Zero};
 use ark_poly::{EvaluationDomain, GeneralEvaluationDomain};
 use ark_relations::r1cs::{
@@ -146,7 +146,7 @@ where
         .map(|i| usize::from(!b[i].is_zero()))
         .sum();
 
-    let scalar_bits = E::Fr::size_in_bits();
+    let scalar_bits = E::Fr::MODULUS_BIT_SIZE as usize;
 
     let gamma_inverse = gamma.inverse().ok_or(SynthesisError::UnexpectedIdentity)?;
     let delta_inverse = delta.inverse().ok_or(SynthesisError::UnexpectedIdentity)?;
@@ -167,52 +167,49 @@ where
 
     // Compute B window table
     let g2_time = start_timer!(|| "Compute G2 table");
-    let g2_window = FixedBaseMSM::get_mul_window_size(non_zero_b);
+    let g2_window = FixedBase::get_mul_window_size(non_zero_b);
     let g2_table =
-        FixedBaseMSM::get_window_table::<E::G2Projective>(scalar_bits, g2_window, g2_generator);
+        FixedBase::get_window_table::<E::G2Projective>(scalar_bits, g2_window, g2_generator);
     end_timer!(g2_time);
 
     // Compute the B-query in G2
     let b_g2_time = start_timer!(|| "Calculate B G2");
-    let b_g2_query =
-        FixedBaseMSM::multi_scalar_mul::<E::G2Projective>(scalar_bits, g2_window, &g2_table, &b);
+    let b_g2_query = FixedBase::msm::<E::G2Projective>(scalar_bits, g2_window, &g2_table, &b);
     drop(g2_table);
     end_timer!(b_g2_time);
 
     // Compute G window table
     let g1_window_time = start_timer!(|| "Compute G1 window table");
     let g1_window =
-        FixedBaseMSM::get_mul_window_size(non_zero_a + non_zero_b + qap_num_variables + m_raw + 1);
+        FixedBase::get_mul_window_size(non_zero_a + non_zero_b + qap_num_variables + m_raw + 1);
     let g1_table =
-        FixedBaseMSM::get_window_table::<E::G1Projective>(scalar_bits, g1_window, g1_generator);
+        FixedBase::get_window_table::<E::G1Projective>(scalar_bits, g1_window, g1_generator);
     end_timer!(g1_window_time);
 
     // Generate the R1CS proving key
     let proving_key_time = start_timer!(|| "Generate the R1CS proving key");
 
-    let alpha_g1 = g1_generator.mul(&alpha.into_repr());
-    let beta_g1 = g1_generator.mul(&beta.into_repr());
-    let beta_g2 = g2_generator.mul(&beta.into_repr());
-    let delta_g1 = g1_generator.mul(&delta.into_repr());
-    let delta_g2 = g2_generator.mul(&delta.into_repr());
+    let alpha_g1 = g1_generator.mul_bigint(&alpha.into_bigint());
+    let beta_g1 = g1_generator.mul_bigint(&beta.into_bigint());
+    let beta_g2 = g2_generator.mul_bigint(&beta.into_bigint());
+    let delta_g1 = g1_generator.mul_bigint(&delta.into_bigint());
+    let delta_g2 = g2_generator.mul_bigint(&delta.into_bigint());
 
     // Compute the A-query
     let a_time = start_timer!(|| "Calculate A");
-    let a_query =
-        FixedBaseMSM::multi_scalar_mul::<E::G1Projective>(scalar_bits, g1_window, &g1_table, &a);
+    let a_query = FixedBase::msm::<E::G1Projective>(scalar_bits, g1_window, &g1_table, &a);
     drop(a);
     end_timer!(a_time);
 
     // Compute the B-query in G1
     let b_g1_time = start_timer!(|| "Calculate B G1");
-    let b_g1_query =
-        FixedBaseMSM::multi_scalar_mul::<E::G1Projective>(scalar_bits, g1_window, &g1_table, &b);
+    let b_g1_query = FixedBase::msm::<E::G1Projective>(scalar_bits, g1_window, &g1_table, &b);
     drop(b);
     end_timer!(b_g1_time);
 
     // Compute the H-query
     let h_time = start_timer!(|| "Calculate H");
-    let h_query = FixedBaseMSM::multi_scalar_mul::<E::G1Projective>(
+    let h_query = FixedBase::msm::<E::G1Projective>(
         scalar_bits,
         g1_window,
         &g1_table,
@@ -223,7 +220,7 @@ where
 
     // Compute the L-query
     let l_time = start_timer!(|| "Calculate L");
-    let l_query = FixedBaseMSM::multi_scalar_mul::<E::G1Projective>(
+    let l_query = FixedBase::msm::<E::G1Projective>(
         scalar_bits,
         g1_window,
         &g1_table,
@@ -236,13 +233,9 @@ where
 
     // Generate R1CS verification key
     let verifying_key_time = start_timer!(|| "Generate the R1CS verification key");
-    let gamma_g2 = g2_generator.mul(&gamma.into_repr());
-    let gamma_abc_g1 = FixedBaseMSM::multi_scalar_mul::<E::G1Projective>(
-        scalar_bits,
-        g1_window,
-        &g1_table,
-        &gamma_abc,
-    );
+    let gamma_g2 = g2_generator.mul_bigint(&gamma.into_bigint());
+    let gamma_abc_g1 =
+        FixedBase::msm::<E::G1Projective>(scalar_bits, g1_window, &g1_table, &gamma_abc);
 
     drop(g1_table);
 

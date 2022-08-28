@@ -29,7 +29,7 @@ pub fn prepare_inputs<E: PairingEngine>(
 
     let mut g_ic = pvk.vk.gamma_abc_g1[0].into_projective();
     for (i, b) in public_inputs.iter().zip(pvk.vk.gamma_abc_g1.iter().skip(1)) {
-        g_ic.add_assign(&b.mul(i.into_repr()));
+        g_ic.add_assign(&b.mul_bigint(i.into_bigint()));
     }
 
     Ok(g_ic)
