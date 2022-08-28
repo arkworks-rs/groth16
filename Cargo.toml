@@ -69,3 +69,20 @@ required-features = ["std"]
 # name = "groth16-recursive"
 # path = "examples/recursive-snark/groth16.rs"
 # required-features = ["std"]
+
+[patch.crates-io]
+ark-ff = { git = "https://github.com/arkworks-rs/algebra" }
+ark-ec = { git = "https://github.com/arkworks-rs/algebra" }
+ark-serialize = { git = "https://github.com/arkworks-rs/algebra" }
+ark-poly = { git = "https://github.com/arkworks-rs/algebra" }
+ark-std = { git = "https://github.com/arkworks-rs/std" }
+ark-relations = { git = "https://github.com/arkworks-rs/snark" }
+ark-crypto-primitives = { git = "https://github.com/arkworks-rs/crypto-primitives" }
+ark-r1cs-std = { git = "https://github.com/arkworks-rs/r1cs-std" }
+ark-bls12-381 = { git = "https://github.com/arkworks-rs/curves" }
+ark-bls12-377 = { git = "https://github.com/arkworks-rs/curves" }
+ark-cp6-782 = { git = "https://github.com/arkworks-rs/curves" }
+ark-mnt4-298 = { git = "https://github.com/arkworks-rs/curves" }
+ark-mnt6-298 = { git = "https://github.com/arkworks-rs/curves" }
+ark-mnt4-753 = { git = "https://github.com/arkworks-rs/curves" }
+ark-mnt6-753 = { git = "https://github.com/arkworks-rs/curves" }
