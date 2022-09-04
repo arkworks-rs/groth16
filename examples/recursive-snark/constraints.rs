@@ -1,69 +1,57 @@
-use algebra::{
-    fields::{FftParameters, FpParameters},
-    BigInteger, Field, PrimeField,
+use ark_crypto_primitives::nizk::constraints::NIZKVerifierGadget;
+use ark_ec::{pairing::Pairing, CurveGroup};
+use ark_ff::{BigInteger, Field, PrimeField, ToConstraintField};
+use ark_groth16::{
+    constraints::{Groth16VerifierGadget, ProofVar, VerifyingKeyVar},
+    Groth16, Parameters, Proof,
 };
-use algebra_core::{PairingEngine, ToConstraintField};
-use core::ops::MulAssign;
-use crypto_primitives::nizk::{
-    constraints::NIZKVerifierGadget,
-    groth16::{
-        constraints::{Groth16VerifierGadget, ProofVar, VerifyingKeyVar},
-        Groth16,
-    },
+use ark_r1cs_std::{
+    boolean::Boolean, fields::fp::FpVar, pairing::PairingVar as PG, prelude::*, uint8::UInt8,
 };
-use groth16::{Parameters, Proof};
-use r1cs_core::{lc, ConstraintSynthesizer, ConstraintSystemRef, SynthesisError};
-use r1cs_std::{fields::fp::FpVar, pairing::PairingVar as PG, prelude::*};
-use std::marker::PhantomData;
+use ark_relations::r1cs::{ConstraintSynthesizer, ConstraintSystemRef, SynthesisError};
+use ark_std::marker::PhantomData;
+use ark_std::ops::MulAssign;
+
+type BasePrimeField<E> = <<<E as Pairing>::G1 as CurveGroup>::BaseField as Field>::BasePrimeField;
 
 pub trait CurvePair
 where
-    <Self::TickGroup as PairingEngine>::G1Projective:
-        MulAssign<<Self::TockGroup as PairingEngine>::Fq>,
-    <Self::TickGroup as PairingEngine>::G2Projective:
-        MulAssign<<Self::TockGroup as PairingEngine>::Fq>,
-    <Self::TickGroup as PairingEngine>::G1Affine:
-        ToConstraintField<<<Self::TockGroup as PairingEngine>::Fr as Field>::BasePrimeField>,
-    <Self::TickGroup as PairingEngine>::G2Affine:
-        ToConstraintField<<<Self::TockGroup as PairingEngine>::Fr as Field>::BasePrimeField>,
+    <Self::TickGroup as Pairing>::G1: MulAssign<BasePrimeField<Self::TockGroup>>,
+    <Self::TickGroup as Pairing>::G2: MulAssign<BasePrimeField<Self::TockGroup>>,
+    <Self::TickGroup as Pairing>::G1Affine:
+        ToConstraintField<<<Self::TockGroup as Pairing>::ScalarField as Field>::BasePrimeField>,
+    <Self::TickGroup as Pairing>::G2Affine:
+        ToConstraintField<<<Self::TockGroup as Pairing>::ScalarField as Field>::BasePrimeField>,
 {
-    type TickGroup: PairingEngine<
-        Fq = <Self::TockGroup as PairingEngine>::Fr,
-        Fr = <Self::TockGroup as PairingEngine>::Fq,
+    type TickGroup: Pairing<
+        Fq = <Self::TockGroup as Pairing>::ScalarField,
+        Fr = <Self::TockGroup as Pairing>::Fq,
     >;
-    type TockGroup: PairingEngine;
+    type TockGroup: Pairing;
 
     const TICK_CURVE: &'static str;
     const TOCK_CURVE: &'static str;
 }
 
 // Verifying InnerCircuit in MiddleCircuit
-type InnerProofSystem<C> = Groth16<
-    <C as CurvePair>::TickGroup,
-    InnerCircuit<<<C as CurvePair>::TickGroup as PairingEngine>::Fr>,
-    <<C as CurvePair>::TickGroup as PairingEngine>::Fr,
->;
+type InnerProofSystem<C> = Groth16<<C as CurvePair>::TickGroup>;
 
 type InnerVerifierGadget<C, PV> = Groth16VerifierGadget<<C as CurvePair>::TickGroup, PV>;
 type InnerProofVar<C, PV> = ProofVar<<C as CurvePair>::TickGroup, PV>;
 type InnerVkVar<C, PV> = VerifyingKeyVar<<C as CurvePair>::TickGroup, PV>;
 
 // Verifying MiddleCircuit in OuterCircuit
-type MiddleProofSystem<C, PV> = Groth16<
-    <C as CurvePair>::TockGroup,
-    MiddleCircuit<C, PV>,
-    <<C as CurvePair>::TockGroup as PairingEngine>::Fr,
->;
+type MiddleProofSystem<C, PV> = Groth16<<C as CurvePair>::TockGroup>;
 type MiddleVerifierGadget<C, PV> = Groth16VerifierGadget<<C as CurvePair>::TockGroup, PV>;
 type MiddleProofVar<C, PV> = ProofVar<<C as CurvePair>::TockGroup, PV>;
 type MiddleVkVar<C, PV> = VerifyingKeyVar<<C as CurvePair>::TockGroup, PV>;
 
-pub struct InnerCircuit<F: Field> {
+pub struct InnerCircuit<F: PrimeField> {
     num_constraints: usize,
     inputs: Vec<F>,
 }
 
-impl<F: Field> InnerCircuit<F> {
+impl<F: PrimeField> InnerCircuit<F> {
     pub fn new(num_constraints: usize, inputs: Vec<F>) -> Self {
         Self {
             num_constraints,
@@ -72,7 +60,7 @@ impl<F: Field> InnerCircuit<F> {
     }
 }
 
-impl<F: Field> ConstraintSynthesizer<F> for InnerCircuit<F> {
+impl<F: PrimeField> ConstraintSynthesizer<F> for InnerCircuit<F> {
     fn generate_constraints(self, cs: ConstraintSystemRef<F>) -> Result<(), SynthesisError> {
         assert!(self.inputs.len() >= 2);
         assert!(self.num_constraints >= self.inputs.len());
@@ -104,14 +92,14 @@ impl<F: Field> ConstraintSynthesizer<F> for InnerCircuit<F> {
 
 pub struct MiddleCircuit<C: CurvePair, TickPairing: PG<C::TickGroup>>
 where
-    <C::TickGroup as PairingEngine>::G1Projective: MulAssign<<C::TockGroup as PairingEngine>::Fq>,
-    <C::TickGroup as PairingEngine>::G2Projective: MulAssign<<C::TockGroup as PairingEngine>::Fq>,
-    <C::TickGroup as PairingEngine>::G1Affine:
-        ToConstraintField<<<C::TockGroup as PairingEngine>::Fr as Field>::BasePrimeField>,
-    <C::TickGroup as PairingEngine>::G2Affine:
-        ToConstraintField<<<C::TockGroup as PairingEngine>::Fr as Field>::BasePrimeField>,
+    <C::TickGroup as Pairing>::G1: MulAssign<BasePrimeField<C::TockGroup>>,
+    <C::TickGroup as Pairing>::G2: MulAssign<BasePrimeField<C::TockGroup>>,
+    <C::TickGroup as Pairing>::G1Affine:
+        ToConstraintField<<<C::TockGroup as Pairing>::ScalarField as Field>::BasePrimeField>,
+    <C::TickGroup as Pairing>::G2Affine:
+        ToConstraintField<<<C::TockGroup as Pairing>::ScalarField as Field>::BasePrimeField>,
 {
-    inputs: Vec<<C::TickGroup as PairingEngine>::Fr>,
+    inputs: Vec<<C::TickGroup as Pairing>::ScalarField>,
     params: Parameters<C::TickGroup>,
     proof: Proof<C::TickGroup>,
     _curve_pair: PhantomData<C>,
@@ -120,15 +108,15 @@ where
 
 impl<C: CurvePair, TickPairing: PG<C::TickGroup>> MiddleCircuit<C, TickPairing>
 where
-    <C::TickGroup as PairingEngine>::G1Projective: MulAssign<<C::TockGroup as PairingEngine>::Fq>,
-    <C::TickGroup as PairingEngine>::G2Projective: MulAssign<<C::TockGroup as PairingEngine>::Fq>,
-    <C::TickGroup as PairingEngine>::G1Affine:
-        ToConstraintField<<<C::TockGroup as PairingEngine>::Fr as Field>::BasePrimeField>,
-    <C::TickGroup as PairingEngine>::G2Affine:
-        ToConstraintField<<<C::TockGroup as PairingEngine>::Fr as Field>::BasePrimeField>,
+    <C::TickGroup as Pairing>::G1: MulAssign<BasePrimeField<C::TockGroup>>,
+    <C::TickGroup as Pairing>::G2: MulAssign<BasePrimeField<C::TockGroup>>,
+    <C::TickGroup as Pairing>::G1Affine:
+        ToConstraintField<<<C::TockGroup as Pairing>::ScalarField as Field>::BasePrimeField>,
+    <C::TickGroup as Pairing>::G2Affine:
+        ToConstraintField<<<C::TockGroup as Pairing>::ScalarField as Field>::BasePrimeField>,
 {
     pub fn new(
-        inputs: Vec<<C::TickGroup as PairingEngine>::Fr>,
+        inputs: Vec<<C::TickGroup as Pairing>::ScalarField>,
         params: Parameters<C::TickGroup>,
         proof: Proof<C::TickGroup>,
     ) -> Self {
@@ -142,8 +130,8 @@ where
     }
 
     pub fn inputs(
-        inputs: &[<C::TickGroup as PairingEngine>::Fr],
-    ) -> Vec<<C::TockGroup as PairingEngine>::Fr> {
+        inputs: &[<C::TickGroup as Pairing>::ScalarField],
+    ) -> Vec<<C::TockGroup as Pairing>::ScalarField> {
         let input_bytes = inputs
             .iter()
             .flat_map(|input| {
@@ -160,21 +148,21 @@ where
     }
 }
 
-impl<C, TickPairing> ConstraintSynthesizer<<C::TockGroup as PairingEngine>::Fr>
+impl<C, TickPairing> ConstraintSynthesizer<<C::TockGroup as Pairing>::ScalarField>
     for MiddleCircuit<C, TickPairing>
 where
     C: CurvePair,
     TickPairing: PG<C::TickGroup>,
-    <C::TickGroup as PairingEngine>::G1Projective: MulAssign<<C::TockGroup as PairingEngine>::Fq>,
-    <C::TickGroup as PairingEngine>::G2Projective: MulAssign<<C::TockGroup as PairingEngine>::Fq>,
-    <C::TickGroup as PairingEngine>::G1Affine:
-        ToConstraintField<<<C::TockGroup as PairingEngine>::Fr as Field>::BasePrimeField>,
-    <C::TickGroup as PairingEngine>::G2Affine:
-        ToConstraintField<<<C::TockGroup as PairingEngine>::Fr as Field>::BasePrimeField>,
+    <C::TickGroup as Pairing>::G1: MulAssign<BasePrimeField<C::TockGroup>>,
+    <C::TickGroup as Pairing>::G2: MulAssign<BasePrimeField<C::TockGroup>>,
+    <C::TickGroup as Pairing>::G1Affine:
+        ToConstraintField<<<C::TockGroup as Pairing>::ScalarField as Field>::BasePrimeField>,
+    <C::TickGroup as Pairing>::G2Affine:
+        ToConstraintField<<<C::TockGroup as Pairing>::ScalarField as Field>::BasePrimeField>,
 {
     fn generate_constraints(
         self,
-        cs: ConstraintSystemRef<<C::TockGroup as PairingEngine>::Fr>,
+        cs: ConstraintSystemRef<<C::TockGroup as Pairing>::ScalarField>,
     ) -> Result<(), SynthesisError> {
         let params = self.params;
         let proof = self.proof;
@@ -182,7 +170,7 @@ where
         let input_gadgets;
 
         {
-            let ns = r1cs_core::ns!(cs, "Allocate Input");
+            let ns = ark_relations::ns!(cs, "Allocate Input");
             let cs = ns.cs();
             // Chain all input values in one large byte array.
             let input_bytes = inputs
@@ -198,10 +186,11 @@ where
                 .collect::<Vec<_>>();
 
             // Allocate this byte array as input packed into field elements.
-            let input_bytes = UInt8::new_input_vec(r1cs_core::ns!(cs, "Input"), &input_bytes[..])?;
+            let input_bytes =
+                UInt8::new_input_vec(ark_relations::ns!(cs, "Input"), &input_bytes[..])?;
             // 40 byte
             let element_size =
-                <<<C::TickGroup as PairingEngine>::Fr as PrimeField>::Params as FftParameters>::BigInt::NUM_LIMBS * 8;
+                <<C::TickGroup as Pairing>::ScalarField as PrimeField>::BigInt::NUM_LIMBS * 8;
             input_gadgets = input_bytes
                 .chunks(element_size)
                 .map(|chunk| {
@@ -220,14 +209,16 @@ where
         );
 
         let vk_var =
-            InnerVkVar::<C, TickPairing>::new_witness(r1cs_core::ns!(cs, "Vk"), || Ok(&params.vk))?;
+            InnerVkVar::<C, TickPairing>::new_witness(ark_relations::ns!(cs, "Vk"), || {
+                Ok(&params.vk)
+            })?;
         let proof_var =
-            InnerProofVar::<C, TickPairing>::new_witness(r1cs_core::ns!(cs, "Proof"), || {
+            InnerProofVar::<C, TickPairing>::new_witness(ark_relations::ns!(cs, "Proof"), || {
                 Ok(proof.clone())
             })?;
         <InnerVerifierGadget<C, TickPairing> as NIZKVerifierGadget<
             InnerProofSystem<C>,
-            <C::TockGroup as PairingEngine>::Fr,
+            <C::TockGroup as Pairing>::ScalarField,
         >>::verify(&vk_var, input_gadgets.iter(), &proof_var)?
         .enforce_equal(&Boolean::TRUE)?;
         println!(
@@ -240,14 +231,14 @@ where
 
 pub struct OuterCircuit<C: CurvePair, TockPairing: PG<C::TockGroup>, TickPairing: PG<C::TickGroup>>
 where
-    <C::TickGroup as PairingEngine>::G1Projective: MulAssign<<C::TockGroup as PairingEngine>::Fq>,
-    <C::TickGroup as PairingEngine>::G2Projective: MulAssign<<C::TockGroup as PairingEngine>::Fq>,
-    <C::TickGroup as PairingEngine>::G1Affine:
-        ToConstraintField<<<C::TockGroup as PairingEngine>::Fr as Field>::BasePrimeField>,
-    <C::TickGroup as PairingEngine>::G2Affine:
-        ToConstraintField<<<C::TockGroup as PairingEngine>::Fr as Field>::BasePrimeField>,
+    <C::TickGroup as Pairing>::G1: MulAssign<BasePrimeField<C::TockGroup>>,
+    <C::TickGroup as Pairing>::G2: MulAssign<BasePrimeField<C::TockGroup>>,
+    <C::TickGroup as Pairing>::G1Affine:
+        ToConstraintField<<<C::TockGroup as Pairing>::ScalarField as Field>::BasePrimeField>,
+    <C::TickGroup as Pairing>::G2Affine:
+        ToConstraintField<<<C::TockGroup as Pairing>::ScalarField as Field>::BasePrimeField>,
 {
-    inputs: Vec<<C::TickGroup as PairingEngine>::Fr>,
+    inputs: Vec<<C::TickGroup as Pairing>::ScalarField>,
     params: Parameters<C::TockGroup>,
     proof: Proof<C::TockGroup>,
     _curve_pair: PhantomData<C>,
@@ -258,15 +249,15 @@ where
 impl<C: CurvePair, TockPairing: PG<C::TockGroup>, TickPairing: PG<C::TickGroup>>
     OuterCircuit<C, TockPairing, TickPairing>
 where
-    <C::TickGroup as PairingEngine>::G1Projective: MulAssign<<C::TockGroup as PairingEngine>::Fq>,
-    <C::TickGroup as PairingEngine>::G2Projective: MulAssign<<C::TockGroup as PairingEngine>::Fq>,
-    <C::TickGroup as PairingEngine>::G1Affine:
-        ToConstraintField<<<C::TockGroup as PairingEngine>::Fr as Field>::BasePrimeField>,
-    <C::TickGroup as PairingEngine>::G2Affine:
-        ToConstraintField<<<C::TockGroup as PairingEngine>::Fr as Field>::BasePrimeField>,
+    <C::TickGroup as Pairing>::G1: MulAssign<BasePrimeField<C::TockGroup>>,
+    <C::TickGroup as Pairing>::G2: MulAssign<BasePrimeField<C::TockGroup>>,
+    <C::TickGroup as Pairing>::G1Affine:
+        ToConstraintField<<<C::TockGroup as Pairing>::ScalarField as Field>::BasePrimeField>,
+    <C::TickGroup as Pairing>::G2Affine:
+        ToConstraintField<<<C::TockGroup as Pairing>::ScalarField as Field>::BasePrimeField>,
 {
     pub fn new(
-        inputs: Vec<<C::TickGroup as PairingEngine>::Fr>,
+        inputs: Vec<<C::TickGroup as Pairing>::ScalarField>,
         params: Parameters<C::TockGroup>,
         proof: Proof<C::TockGroup>,
     ) -> Self {
@@ -282,19 +273,19 @@ where
 }
 
 impl<C: CurvePair, TockPairing: PG<C::TockGroup>, TickPairing: PG<C::TickGroup>>
-    ConstraintSynthesizer<<C::TickGroup as PairingEngine>::Fr>
+    ConstraintSynthesizer<<C::TickGroup as Pairing>::ScalarField>
     for OuterCircuit<C, TockPairing, TickPairing>
 where
-    <C::TickGroup as PairingEngine>::G1Projective: MulAssign<<C::TockGroup as PairingEngine>::Fq>,
-    <C::TickGroup as PairingEngine>::G2Projective: MulAssign<<C::TockGroup as PairingEngine>::Fq>,
-    <C::TickGroup as PairingEngine>::G1Affine:
-        ToConstraintField<<<C::TockGroup as PairingEngine>::Fr as Field>::BasePrimeField>,
-    <C::TickGroup as PairingEngine>::G2Affine:
-        ToConstraintField<<<C::TockGroup as PairingEngine>::Fr as Field>::BasePrimeField>,
+    <C::TickGroup as Pairing>::G1: MulAssign<BasePrimeField<C::TockGroup>>,
+    <C::TickGroup as Pairing>::G2: MulAssign<BasePrimeField<C::TockGroup>>,
+    <C::TickGroup as Pairing>::G1Affine:
+        ToConstraintField<<<C::TockGroup as Pairing>::ScalarField as Field>::BasePrimeField>,
+    <C::TickGroup as Pairing>::G2Affine:
+        ToConstraintField<<<C::TockGroup as Pairing>::ScalarField as Field>::BasePrimeField>,
 {
     fn generate_constraints(
         self,
-        cs: ConstraintSystemRef<<C::TickGroup as PairingEngine>::Fr>,
+        cs: ConstraintSystemRef<<C::TickGroup as Pairing>::ScalarField>,
     ) -> Result<(), SynthesisError> {
         let params = self.params;
         let proof = self.proof;
@@ -303,13 +294,13 @@ where
 
         {
             let bigint_size =
-                <<C::TickGroup as PairingEngine>::Fr as PrimeField>::BigInt::NUM_LIMBS * 64;
+                <<C::TickGroup as Pairing>::ScalarField as PrimeField>::BigInt::NUM_LIMBS * 64;
             let mut input_bits = Vec::new();
-            let ns = r1cs_core::ns!(cs, "Allocate Input");
+            let ns = ark_relations::ns!(cs, "Allocate Input");
             let cs = ns.cs();
 
             for input in inputs.into_iter() {
-                let input_gadget = FpVar::new_input(r1cs_core::ns!(cs, "Input"), || Ok(input))?;
+                let input_gadget = FpVar::new_input(ark_relations::ns!(cs, "Input"), || Ok(input))?;
                 let mut fp_bits = input_gadget.to_bits_le()?;
 
                 // Use 320 bits per element.
@@ -321,10 +312,10 @@ where
 
             // Pack input bits into field elements of the underlying circuit.
             let max_size = 8
-                * (<<<C::TockGroup as PairingEngine>::Fr as PrimeField>::Params as FpParameters>::CAPACITY / 8)
-                    as usize;
+                * ((<<C::TockGroup as Pairing>::ScalarField as PrimeField>::MODULUS_BIT_SIZE - 1)
+                    / 8) as usize;
             let bigint_size =
-                <<<C::TockGroup as PairingEngine>::Fr as PrimeField>::Params as FftParameters>::BigInt::NUM_LIMBS * 64;
+                <<C::TockGroup as Pairing>::ScalarField as PrimeField>::BigInt::NUM_LIMBS * 64;
             for chunk in input_bits.chunks(max_size) {
                 let mut chunk = chunk.to_vec();
                 let len = chunk.len();
@@ -342,17 +333,16 @@ where
         );
 
         let vk_var =
-            MiddleVkVar::<C, TockPairing>::new_witness(
-                r1cs_core::ns!(cs, "Vk"),
-                || Ok(&params.vk),
-            )?;
+            MiddleVkVar::<C, TockPairing>::new_witness(ark_relations::ns!(cs, "Vk"), || {
+                Ok(&params.vk)
+            })?;
         let proof_var =
             MiddleProofVar::<C, TockPairing>::new_witness(r1cs_core::ns!(cs, "Proof"), || {
                 Ok(proof.clone())
             })?;
         <MiddleVerifierGadget<C, TockPairing> as NIZKVerifierGadget<
             MiddleProofSystem<C, TickPairing>,
-            <C::TickGroup as PairingEngine>::Fr,
+            <C::TickGroup as Pairing>::ScalarField,
         >>::verify(&vk_var, &input_gadgets, &proof_var)?
         .enforce_equal(&Boolean::TRUE)?;
         println!(

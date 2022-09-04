@@ -10,29 +10,26 @@
     unsafe_code
 )]
 
-use csv;
-use std::ops::MulAssign;
-
-// For randomness (during paramgen and proof generation)
-use algebra_core::{test_rng, PairingEngine};
-
-// For benchmarking
-use std::{
+use ark_ec::{pairing::Pairing, CurveGroup};
+use ark_ff::{Field, ToConstraintField};
+use ark_mnt4_298::MNT4_298;
+use ark_r1cs_std::pairing::PairingVar as PG;
+use ark_std::{
     env,
     error::Error,
     fs::OpenOptions,
+    ops::MulAssign,
     path::PathBuf,
-    process,
+    process, test_rng,
     time::{Duration, Instant},
 };
+use csv;
 
-pub use algebra::{mnt4_298, mnt6_298, Field, ToConstraintField, UniformRand};
-use r1cs_std::pairing::PairingVar as PG;
-
-// We're going to use the Groth 16 proving system.
-use groth16::{
+use ark_groth16::{
     create_random_proof, generate_random_parameters, prepare_verifying_key, verify_proof,
 };
+
+type BasePrimeField<E> = <<<E as Pairing>::G1 as CurveGroup>::BaseField as Field>::BasePrimeField;
 
 mod constraints;
 use crate::constraints::{CurvePair, InnerCircuit, MiddleCircuit, OuterCircuit};
@@ -84,12 +81,12 @@ fn run<C: CurvePair, TickPairing: PG<C::TickGroup>, TockPairing: PG<C::TockGroup
     output_file_path: PathBuf,
 ) -> Result<(), Box<dyn Error>>
 where
-    <C::TickGroup as PairingEngine>::G1Projective: MulAssign<<C::TockGroup as PairingEngine>::Fq>,
-    <C::TickGroup as PairingEngine>::G2Projective: MulAssign<<C::TockGroup as PairingEngine>::Fq>,
-    <C::TickGroup as PairingEngine>::G1Affine:
-        ToConstraintField<<<C::TockGroup as PairingEngine>::Fr as Field>::BasePrimeField>,
-    <C::TickGroup as PairingEngine>::G2Affine:
-        ToConstraintField<<<C::TockGroup as PairingEngine>::Fr as Field>::BasePrimeField>,
+    <C::TickGroup as Pairing>::G1: MulAssign<BasePrimeField<C::TockGroup>>,
+    <C::TickGroup as Pairing>::G2: MulAssign<BasePrimeField<C::TockGroup>>,
+    <C::TickGroup as Pairing>::G1Affine:
+        ToConstraintField<<<C::TockGroup as Pairing>::ScalarField as Field>::BasePrimeField>,
+    <C::TickGroup as Pairing>::G2Affine:
+        ToConstraintField<<<C::TockGroup as Pairing>::ScalarField as Field>::BasePrimeField>,
 {
     let mut wtr = if !output_file_path.exists() {
         println!("Creating output file");
@@ -136,19 +133,17 @@ where
 
     for sample in 0..samples {
         println!("Running sample {}/{}", sample + 1, samples);
-        let mut inputs: Vec<<C::TickGroup as PairingEngine>::Fr> =
+        let mut inputs: Vec<<C::TickGroup as Pairing>::ScalarField> =
             Vec::with_capacity(num_constraints);
         for _ in 0..num_constraints {
-            inputs.push(<<C::TickGroup as PairingEngine>::Fr as UniformRand>::rand(
-                rng,
-            ));
+            inputs.push(<<C::TickGroup as Pairing>::ScalarField as UniformRand>::rand(rng));
         }
 
         // Create parameters for our inner circuit
         println!("|-- Generating inner parameters ({})", C::TICK_CURVE);
         let start = Instant::now();
         let params_inner = {
-            let c = InnerCircuit::<<C::TickGroup as PairingEngine>::Fr>::new(
+            let c = InnerCircuit::<<C::TickGroup as Pairing>::ScalarField>::new(
                 num_constraints,
                 inputs.clone(),
             );

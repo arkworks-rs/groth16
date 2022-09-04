@@ -45,24 +45,24 @@ pub use self::data_structures::*;
 pub use self::{generator::*, prover::*, verifier::*};
 
 use ark_crypto_primitives::snark::*;
-use ark_ec::PairingEngine;
+use ark_ec::pairing::Pairing;
 use ark_relations::r1cs::{ConstraintSynthesizer, SynthesisError};
 use ark_std::rand::RngCore;
 use ark_std::{marker::PhantomData, vec::Vec};
 
 /// The SNARK of [[Groth16]](https://eprint.iacr.org/2016/260.pdf).
-pub struct Groth16<E: PairingEngine> {
+pub struct Groth16<E: Pairing> {
     e_phantom: PhantomData<E>,
 }
 
-impl<E: PairingEngine> SNARK<E::Fr> for Groth16<E> {
+impl<E: Pairing> SNARK<E::ScalarField> for Groth16<E> {
     type ProvingKey = ProvingKey<E>;
     type VerifyingKey = VerifyingKey<E>;
     type Proof = Proof<E>;
     type ProcessedVerifyingKey = PreparedVerifyingKey<E>;
     type Error = SynthesisError;
 
-    fn circuit_specific_setup<C: ConstraintSynthesizer<E::Fr>, R: RngCore>(
+    fn circuit_specific_setup<C: ConstraintSynthesizer<E::ScalarField>, R: RngCore>(
         circuit: C,
         rng: &mut R,
     ) -> Result<(Self::ProvingKey, Self::VerifyingKey), Self::Error> {
@@ -72,7 +72,7 @@ impl<E: PairingEngine> SNARK<E::Fr> for Groth16<E> {
         Ok((pk, vk))
     }
 
-    fn prove<C: ConstraintSynthesizer<E::Fr>, R: RngCore>(
+    fn prove<C: ConstraintSynthesizer<E::ScalarField>, R: RngCore>(
         pk: &Self::ProvingKey,
         circuit: C,
         rng: &mut R,
@@ -88,11 +88,11 @@ impl<E: PairingEngine> SNARK<E::Fr> for Groth16<E> {
 
     fn verify_with_processed_vk(
         circuit_pvk: &Self::ProcessedVerifyingKey,
-        x: &[E::Fr],
+        x: &[E::ScalarField],
         proof: &Self::Proof,
     ) -> Result<bool, Self::Error> {
         Ok(verify_proof(&circuit_pvk, proof, &x)?)
     }
 }
 
-impl<E: PairingEngine> CircuitSpecificSetupSNARK<E::Fr> for Groth16<E> {}
+impl<E: Pairing> CircuitSpecificSetupSNARK<E::ScalarField> for Groth16<E> {}

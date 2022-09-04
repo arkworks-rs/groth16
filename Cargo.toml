@@ -38,6 +38,7 @@ ark-mnt4-298 = { version = "^0.3.0", default-features = false, features = ["r1cs
 ark-mnt6-298 = { version = "^0.3.0", default-features = false, features = ["r1cs"] }
 ark-mnt4-753 = { version = "^0.3.0", default-features = false, features = ["r1cs", "curve"] }
 ark-mnt6-753 = { version = "^0.3.0", default-features = false, features = ["r1cs"] }
+ark-r1cs-std = { version = "^0.3.0", default-features = false }
 
 [features]
 default = ["parallel"]
@@ -47,7 +48,12 @@ r1cs = [ "ark-crypto-primitives/r1cs", "ark-r1cs-std", "tracing", "derivative" ]
 print-trace = [ "ark-std/print-trace" ]
 
 [[example]]
-name = "groth16"
+name = "recursive-snark"
+path = "examples/recursive-snark/groth16.rs"
+required-features = ["std"]
+
+[[example]]
+name = "snark-scalability"
 path = "examples/snark-scalability/groth16.rs"
 required-features = ["std"]
 
@@ -56,11 +62,6 @@ name = "groth16-benches"
 path = "benches/bench.rs"
 harness = false
 required-features = ["std"]
-
-# [[example]]
-# name = "groth16-recursive"
-# path = "examples/recursive-snark/groth16.rs"
-# required-features = ["std"]
 
 [profile.release]
 opt-level = 3
@@ -93,7 +94,7 @@ ark-ec = { git = "https://github.com/arkworks-rs/algebra", branch = "g2prepared-
 ark-serialize = { git = "https://github.com/arkworks-rs/algebra", branch = "g2prepared-serialization" }
 ark-poly = { git = "https://github.com/arkworks-rs/algebra", branch = "g2prepared-serialization" }
 ark-std = { git = "https://github.com/arkworks-rs/std" }
-ark-crypto-primitives = { git = "https://github.com/arkworks-rs/crypto-primitives", branch = "non-r1cs-part-fix" }
+ark-crypto-primitives = { git = "https://github.com/arkworks-rs/crypto-primitives" }
 ark-r1cs-std = { git = "https://github.com/arkworks-rs/r1cs-std" }
 ark-bls12-381 = { git = "https://github.com/arkworks-rs/curves" }
 ark-bls12-377 = { git = "https://github.com/arkworks-rs/curves" }
@@ -104,4 +105,4 @@ ark-mnt4-753 = { git = "https://github.com/arkworks-rs/curves" }
 ark-mnt6-753 = { git = "https://github.com/arkworks-rs/curves" }
 ark-relations = {git = "https://github.com/arkworks-rs/snark", branch = "sync-algebra" }
 ark-snark = { git = "https://github.com/arkworks-rs/snark", branch = "sync-algebra" }
-ark-sponge = { git = "https://github.com/arkworks-rs/sponge" }
+ark-sponge = { git = "https://github.com/arkworks-rs/sponge", branch = "update-serialize" }

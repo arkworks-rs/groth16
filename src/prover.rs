@@ -2,7 +2,7 @@ use crate::{
     r1cs_to_qap::{LibsnarkReduction, R1CStoQAP},
     Proof, ProvingKey, VerifyingKey,
 };
-use ark_ec::{msm::VariableBaseMSM, AffineCurve, PairingEngine, ProjectiveCurve};
+use ark_ec::{pairing::Pairing, AffineRepr, CurveGroup, Group, VariableBaseMSM};
 use ark_ff::{Field, PrimeField, UniformRand, Zero};
 use ark_poly::GeneralEvaluationDomain;
 use ark_relations::r1cs::{
@@ -10,7 +10,11 @@ use ark_relations::r1cs::{
     Result as R1CSResult,
 };
 use ark_std::rand::Rng;
-use ark_std::{cfg_into_iter, cfg_iter, ops::Mul, vec::Vec};
+use ark_std::{
+    cfg_into_iter, cfg_iter,
+    ops::{AddAssign, Mul},
+    vec::Vec,
+};
 
 #[cfg(feature = "parallel")]
 use rayon::prelude::*;
@@ -23,8 +27,8 @@ pub fn create_random_proof<E, C, R>(
     rng: &mut R,
 ) -> R1CSResult<Proof<E>>
 where
-    E: PairingEngine,
-    C: ConstraintSynthesizer<E::Fr>,
+    E: Pairing,
+    C: ConstraintSynthesizer<E::ScalarField>,
     R: Rng,
 {
     create_random_proof_with_reduction::<E, C, R, LibsnarkReduction>(circuit, pk, rng)
@@ -38,20 +42,20 @@ type D<F> = GeneralEvaluationDomain<F>;
 #[inline]
 pub fn create_proof_with_reduction_and_matrices<E, QAP>(
     pk: &ProvingKey<E>,
-    r: E::Fr,
-    s: E::Fr,
-    matrices: &ConstraintMatrices<E::Fr>,
+    r: E::ScalarField,
+    s: E::ScalarField,
+    matrices: &ConstraintMatrices<E::ScalarField>,
     num_inputs: usize,
     num_constraints: usize,
-    full_assignment: &[E::Fr],
+    full_assignment: &[E::ScalarField],
 ) -> R1CSResult<Proof<E>>
 where
-    E: PairingEngine,
+    E: Pairing,
     QAP: R1CStoQAP,
 {
     let prover_time = start_timer!(|| "Groth16::Prover");
     let witness_map_time = start_timer!(|| "R1CS to QAP witness map");
-    let h = QAP::witness_map_from_matrices::<E::Fr, D<E::Fr>>(
+    let h = QAP::witness_map_from_matrices::<E::ScalarField, D<E::ScalarField>>(
         matrices,
         num_inputs,
         num_constraints,
@@ -70,22 +74,22 @@ where
 #[inline]
 fn create_proof_with_assignment<E, QAP>(
     pk: &ProvingKey<E>,
-    r: E::Fr,
-    s: E::Fr,
-    h: &[E::Fr],
-    input_assignment: &[E::Fr],
-    aux_assignment: &[E::Fr],
+    r: E::ScalarField,
+    s: E::ScalarField,
+    h: &[E::ScalarField],
+    input_assignment: &[E::ScalarField],
+    aux_assignment: &[E::ScalarField],
 ) -> R1CSResult<Proof<E>>
 where
-    E: PairingEngine,
+    E: Pairing,
     QAP: R1CStoQAP,
-    E::G1Projective: VariableBaseMSM<Scalar = E::Fr, MSMBase = E::G1Affine>,
+    E::G1: VariableBaseMSM<MulBase = E::G1Affine>,
 {
     let c_acc_time = start_timer!(|| "Compute C");
     let h_assignment = cfg_into_iter!(h)
         .map(|s| s.into_bigint())
         .collect::<Vec<_>>();
-    let h_acc = E::G1Projective::msm_bigint(&pk.h_query, &h_assignment);
+    let h_acc = E::G1::msm_bigint(&pk.h_query, &h_assignment);
     drop(h_assignment);
 
     // Compute C
@@ -93,11 +97,11 @@ where
         .map(|s| s.into_bigint())
         .collect::<Vec<_>>();
 
-    let l_aux_acc = E::G1Projective::msm_bigint(&pk.l_query, &aux_assignment);
+    let l_aux_acc = E::G1::msm_bigint(&pk.l_query, &aux_assignment);
 
     let r_s_delta_g1 = pk
         .delta_g1
-        .into_projective()
+        .into_group()
         .mul_bigint(&r.into_bigint())
         .mul_bigint(&s.into_bigint());
 
@@ -130,7 +134,7 @@ where
 
         g1_b
     } else {
-        E::G1Projective::zero()
+        E::G1::zero()
     };
 
     // Compute B in G2
@@ -167,13 +171,13 @@ pub fn create_random_proof_with_reduction<E, C, R, QAP>(
     rng: &mut R,
 ) -> R1CSResult<Proof<E>>
 where
-    E: PairingEngine,
-    C: ConstraintSynthesizer<E::Fr>,
+    E: Pairing,
+    C: ConstraintSynthesizer<E::ScalarField>,
     R: Rng,
     QAP: R1CStoQAP,
 {
-    let r = E::Fr::rand(rng);
-    let s = E::Fr::rand(rng);
+    let r = E::ScalarField::rand(rng);
+    let s = E::ScalarField::rand(rng);
 
     create_proof_with_reduction::<E, C, QAP>(circuit, pk, r, s)
 }
@@ -182,8 +186,8 @@ where
 /// Create a Groth16 proof that is *not* zero-knowledge.
 pub fn create_proof_no_zk<E, C>(circuit: C, pk: &ProvingKey<E>) -> R1CSResult<Proof<E>>
 where
-    E: PairingEngine,
-    C: ConstraintSynthesizer<E::Fr>,
+    E: Pairing,
+    C: ConstraintSynthesizer<E::ScalarField>,
 {
     create_proof_with_reduction_no_zk::<E, C, LibsnarkReduction>(circuit, pk)
 }
@@ -196,11 +200,16 @@ pub fn create_proof_with_reduction_no_zk<E, C, QAP>(
     pk: &ProvingKey<E>,
 ) -> R1CSResult<Proof<E>>
 where
-    E: PairingEngine,
-    C: ConstraintSynthesizer<E::Fr>,
+    E: Pairing,
+    C: ConstraintSynthesizer<E::ScalarField>,
     QAP: R1CStoQAP,
 {
-    create_proof_with_reduction::<E, C, QAP>(circuit, pk, E::Fr::zero(), E::Fr::zero())
+    create_proof_with_reduction::<E, C, QAP>(
+        circuit,
+        pk,
+        E::ScalarField::zero(),
+        E::ScalarField::zero(),
+    )
 }
 
 #[inline]
@@ -208,12 +217,12 @@ where
 pub fn create_proof<E, C>(
     circuit: C,
     pk: &ProvingKey<E>,
-    r: E::Fr,
-    s: E::Fr,
+    r: E::ScalarField,
+    s: E::ScalarField,
 ) -> R1CSResult<Proof<E>>
 where
-    E: PairingEngine,
-    C: ConstraintSynthesizer<E::Fr>,
+    E: Pairing,
+    C: ConstraintSynthesizer<E::ScalarField>,
 {
     create_proof_with_reduction::<E, C, LibsnarkReduction>(circuit, pk, r, s)
 }
@@ -224,12 +233,12 @@ where
 pub fn create_proof_with_reduction<E, C, QAP>(
     circuit: C,
     pk: &ProvingKey<E>,
-    r: E::Fr,
-    s: E::Fr,
+    r: E::ScalarField,
+    s: E::ScalarField,
 ) -> R1CSResult<Proof<E>>
 where
-    E: PairingEngine,
-    C: ConstraintSynthesizer<E::Fr>,
+    E: Pairing,
+    C: ConstraintSynthesizer<E::ScalarField>,
     QAP: R1CStoQAP,
 {
     let prover_time = start_timer!(|| "Groth16::Prover");
@@ -249,7 +258,7 @@ where
     end_timer!(lc_time);
 
     let witness_map_time = start_timer!(|| "R1CS to QAP witness map");
-    let h = QAP::witness_map::<E::Fr, D<E::Fr>>(cs.clone())?;
+    let h = QAP::witness_map::<E::ScalarField, D<E::ScalarField>>(cs.clone())?;
     end_timer!(witness_map_time);
 
     let prover = cs.borrow().unwrap();
@@ -273,14 +282,14 @@ where
 /// [\[BKSV20\]](https://eprint.iacr.org/2020/811)
 pub fn rerandomize_proof<E, R>(rng: &mut R, vk: &VerifyingKey<E>, proof: &Proof<E>) -> Proof<E>
 where
-    E: PairingEngine,
+    E: Pairing,
     R: Rng,
 {
     // These are our rerandomization factors. They must be nonzero and uniformly sampled.
-    let (mut r1, mut r2) = (E::Fr::zero(), E::Fr::zero());
+    let (mut r1, mut r2) = (E::ScalarField::zero(), E::ScalarField::zero());
     while r1.is_zero() || r2.is_zero() {
-        r1 = E::Fr::rand(rng);
-        r2 = E::Fr::rand(rng);
+        r1 = E::ScalarField::rand(rng);
+        r2 = E::ScalarField::rand(rng);
     }
 
     // See figure 1 in the paper referenced above:
@@ -296,26 +305,26 @@ where
     Proof {
         a: new_a.into_affine(),
         b: new_b.into_affine(),
-        c: new_c,
+        c: new_c.into_affine(),
     }
 }
 
-fn calculate_coeff<G: AffineCurve>(
-    initial: G::Projective,
+fn calculate_coeff<G: AffineRepr>(
+    initial: G::Group,
     query: &[G],
     vk_param: G,
     assignment: &[<G::ScalarField as PrimeField>::BigInt],
-) -> G::Projective
+) -> G::Group
 where
-    G::Projective: VariableBaseMSM<Scalar = G::ScalarField, MSMBase = G>,
+    G::Group: VariableBaseMSM<MulBase = G>,
 {
     let el = query[0];
-    let acc = G::Projective::msm_bigint(&query[1..], assignment);
+    let acc = G::Group::msm_bigint(&query[1..], assignment);
 
     let mut res = initial;
-    res.add_assign_mixed(&el);
+    res.add_assign(&el);
     res += &acc;
-    res.add_assign_mixed(&vk_param);
+    res.add_assign(&vk_param);
 
     res
 }
