@@ -204,7 +204,7 @@ impl R1CStoQAP for LibsnarkReduction {
             .zip(c)
             .for_each(|(ab_i, c_i)| *ab_i -= &c_i);
 
-        let i = coset_domain
+        let i = domain
             .evaluate_vanishing_polynomial(F::GENERATOR)
             .inverse()
             .unwrap();
