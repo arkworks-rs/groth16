@@ -194,8 +194,6 @@ impl R1CStoQAP for LibsnarkReduction {
             .for_each(|(i, c)| {
                 *c = evaluate_constraint(&matrices.c[i], &full_assignment);
             });
-
-        // let coset_domain = domain.get_coset(F::GENERATOR).unwrap();
         
         domain.ifft_in_place(&mut c);
         coset_domain.fft_in_place(&mut c);
