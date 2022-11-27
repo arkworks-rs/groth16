@@ -212,7 +212,7 @@ impl R1CStoQAP for LibsnarkReduction {
         let mut z = domain.mul_polynomials_in_evaluation_domain(&ab, &inverted_polynomial_points);
         
         drop(ab);
-        drop(inverse);
+        drop(inverted_polynomial_points);
 
         coset_domain.ifft_in_place(&mut z);
 
