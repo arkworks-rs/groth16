@@ -209,15 +209,10 @@ impl R1CStoQAP for LibsnarkReduction {
             .map(|point| van.evaluate(&point).inverse().unwrap())
             .collect();
 
-        // let i = domain
-        //     .evaluate_vanishing_polynomial(F::GENERATOR)
-        //     .inverse()
-        //     .unwrap();
-
         let mut z = domain.mul_polynomials_in_evaluation_domain(&ab, &inverse);
         drop(ab);
         drop(inverse);
-        // ark_std::cfg_iter_mut!(ab).for_each(|eval| *eval *= &i);
+        
         coset_domain.ifft_in_place(&mut z);
 
         Ok(z)
