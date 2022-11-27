@@ -1,5 +1,5 @@
 use ark_ff::{One, PrimeField, Zero};
-use ark_poly::EvaluationDomain;
+use ark_poly::{EvaluationDomain, Polynomial};
 use ark_std::{cfg_iter, cfg_iter_mut, vec};
 
 use crate::Vec;
@@ -202,14 +202,23 @@ impl R1CStoQAP for LibsnarkReduction {
             .zip(c)
             .for_each(|(ab_i, c_i)| *ab_i -= &c_i);
 
-        let i = domain
-            .evaluate_vanishing_polynomial(F::GENERATOR)
-            .inverse()
-            .unwrap();
-        ark_std::cfg_iter_mut!(ab).for_each(|eval| *eval *= &i);
-        coset_domain.ifft_in_place(&mut ab);
+        let van = domain.vanishing_polynomial();
 
-        Ok(ab)
+
+        let inverse:Vec<F> = coset_domain.elements().map(|point| van.evaluate(&point).inverse().unwrap()).collect();
+
+        // let i = domain
+        //     .evaluate_vanishing_polynomial(F::GENERATOR)
+        //     .inverse()
+        //     .unwrap();
+        
+        let mut z = domain.mul_polynomials_in_evaluation_domain(&ab, &inverse);
+        drop(ab);
+        drop(inverse);
+        // ark_std::cfg_iter_mut!(ab).for_each(|eval| *eval *= &i);
+        coset_domain.ifft_in_place(&mut z);
+
+        Ok(z)
     }
 
     fn h_query_scalars<F: PrimeField, D: EvaluationDomain<F>>(
