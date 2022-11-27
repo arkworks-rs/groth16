@@ -194,7 +194,7 @@ impl R1CStoQAP for LibsnarkReduction {
             .for_each(|(i, c)| {
                 *c = evaluate_constraint(&matrices.c[i], &full_assignment);
             });
-        
+
         domain.ifft_in_place(&mut c);
         coset_domain.fft_in_place(&mut c);
 
@@ -204,14 +204,16 @@ impl R1CStoQAP for LibsnarkReduction {
 
         let van = domain.vanishing_polynomial();
 
-
-        let inverse:Vec<F> = coset_domain.elements().map(|point| van.evaluate(&point).inverse().unwrap()).collect();
+        let inverse: Vec<F> = coset_domain
+            .elements()
+            .map(|point| van.evaluate(&point).inverse().unwrap())
+            .collect();
 
         // let i = domain
         //     .evaluate_vanishing_polynomial(F::GENERATOR)
         //     .inverse()
         //     .unwrap();
-        
+
         let mut z = domain.mul_polynomials_in_evaluation_domain(&ab, &inverse);
         drop(ab);
         drop(inverse);
