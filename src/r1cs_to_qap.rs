@@ -202,17 +202,18 @@ impl R1CStoQAP for LibsnarkReduction {
             .zip(c)
             .for_each(|(ab_i, c_i)| *ab_i -= &c_i);
 
-        let van = domain.vanishing_polynomial();
+        let vanishing_polynomial = domain.vanishing_polynomial();
 
-        let inverse: Vec<F> = coset_domain
+        let inverted_polynomial_points: Vec<F> = coset_domain
             .elements()
-            .map(|point| van.evaluate(&point).inverse().unwrap())
+            .map(|point| vanishing_polynomial.evaluate(&point).inverse().unwrap())
             .collect();
 
-        let mut z = domain.mul_polynomials_in_evaluation_domain(&ab, &inverse);
+        let mut z = domain.mul_polynomials_in_evaluation_domain(&ab, &inverted_polynomial_points);
+        
         drop(ab);
         drop(inverse);
-        
+
         coset_domain.ifft_in_place(&mut z);
 
         Ok(z)
