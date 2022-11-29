@@ -22,6 +22,7 @@ use ark_std::{
     path::PathBuf,
     process, test_rng,
     time::{Duration, Instant},
+    UniformRand,
 };
 use csv;
 
@@ -36,15 +37,15 @@ use crate::constraints::{CurvePair, InnerCircuit, MiddleCircuit, OuterCircuit};
 
 struct MNT46;
 impl CurvePair for MNT46 {
-    type TickGroup = mnt4_298::MNT4_298;
-    type TockGroup = mnt6_298::MNT6_298;
+    type TickGroup = ark_mnt4_298::MNT4_298;
+    type TockGroup = ark_mnt6_298::MNT6_298;
     const TICK_CURVE: &'static str = "MNT4_298";
     const TOCK_CURVE: &'static str = "MNT6_298";
 }
 struct MNT64;
 impl CurvePair for MNT64 {
-    type TickGroup = mnt6_298::MNT6_298;
-    type TockGroup = mnt4_298::MNT4_298;
+    type TickGroup = ark_mnt6_298::MNT6_298;
+    type TockGroup = ark_mnt4_298::MNT4_298;
     const TICK_CURVE: &'static str = "MNT6_298";
     const TOCK_CURVE: &'static str = "MNT4_298";
 }
@@ -64,12 +65,12 @@ fn main() -> Result<(), Box<dyn Error>> {
     let output_file_path = PathBuf::from(args[2].clone());
 
     if args.len() < 4 || args[3] == "46" {
-        run::<MNT46, r1cs_std::mnt4_298::PairingVar, r1cs_std::mnt6_298::PairingVar>(
+        run::<MNT46, ark_mnt4_298::constraints::PairingVar, ark_mnt6_298::constraints::PairingVar>(
             num_constraints,
             output_file_path,
         )
     } else {
-        run::<MNT64, r1cs_std::mnt6_298::PairingVar, r1cs_std::mnt4_298::PairingVar>(
+        run::<MNT64, ark_mnt6_298::constraints::PairingVar, ark_mnt4_298::constraints::PairingVar>(
             num_constraints,
             output_file_path,
         )
@@ -136,7 +137,7 @@ where
         let mut inputs: Vec<<C::TickGroup as Pairing>::ScalarField> =
             Vec::with_capacity(num_constraints);
         for _ in 0..num_constraints {
-            inputs.push(<<C::TickGroup as Pairing>::ScalarField as UniformRand>::rand(rng));
+            inputs.push(UniformRand::rand(rng));
         }
 
         // Create parameters for our inner circuit

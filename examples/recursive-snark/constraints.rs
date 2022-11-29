@@ -1,14 +1,17 @@
-use ark_crypto_primitives::nizk::constraints::NIZKVerifierGadget;
+use ark_crypto_primitives::snark::constraints::SNARKGadget;
 use ark_ec::{pairing::Pairing, CurveGroup};
 use ark_ff::{BigInteger, Field, PrimeField, ToConstraintField};
 use ark_groth16::{
     constraints::{Groth16VerifierGadget, ProofVar, VerifyingKeyVar},
-    Groth16, Parameters, Proof,
+    Groth16, Proof, ProvingKey, VerifyingKey,
 };
 use ark_r1cs_std::{
     boolean::Boolean, fields::fp::FpVar, pairing::PairingVar as PG, prelude::*, uint8::UInt8,
 };
-use ark_relations::r1cs::{ConstraintSynthesizer, ConstraintSystemRef, SynthesisError};
+use ark_relations::{
+    lc,
+    r1cs::{ConstraintSynthesizer, ConstraintSystemRef, SynthesisError},
+};
 use ark_std::marker::PhantomData;
 use ark_std::ops::MulAssign;
 
@@ -24,8 +27,8 @@ where
         ToConstraintField<<<Self::TockGroup as Pairing>::ScalarField as Field>::BasePrimeField>,
 {
     type TickGroup: Pairing<
-        Fq = <Self::TockGroup as Pairing>::ScalarField,
-        Fr = <Self::TockGroup as Pairing>::Fq,
+        BaseField = <Self::TockGroup as Pairing>::ScalarField,
+        ScalarField = <Self::TockGroup as Pairing>::BaseField,
     >;
     type TockGroup: Pairing;
 
@@ -41,7 +44,7 @@ type InnerProofVar<C, PV> = ProofVar<<C as CurvePair>::TickGroup, PV>;
 type InnerVkVar<C, PV> = VerifyingKeyVar<<C as CurvePair>::TickGroup, PV>;
 
 // Verifying MiddleCircuit in OuterCircuit
-type MiddleProofSystem<C, PV> = Groth16<<C as CurvePair>::TockGroup>;
+type MiddleProofSystem<C> = Groth16<<C as CurvePair>::TockGroup>;
 type MiddleVerifierGadget<C, PV> = Groth16VerifierGadget<<C as CurvePair>::TockGroup, PV>;
 type MiddleProofVar<C, PV> = ProofVar<<C as CurvePair>::TockGroup, PV>;
 type MiddleVkVar<C, PV> = VerifyingKeyVar<<C as CurvePair>::TockGroup, PV>;
@@ -100,7 +103,7 @@ where
         ToConstraintField<<<C::TockGroup as Pairing>::ScalarField as Field>::BasePrimeField>,
 {
     inputs: Vec<<C::TickGroup as Pairing>::ScalarField>,
-    params: Parameters<C::TickGroup>,
+    params: VerifyingKey<C::TickGroup>,
     proof: Proof<C::TickGroup>,
     _curve_pair: PhantomData<C>,
     _tick_pairing: PhantomData<TickPairing>,
@@ -117,7 +120,7 @@ where
 {
     pub fn new(
         inputs: Vec<<C::TickGroup as Pairing>::ScalarField>,
-        params: Parameters<C::TickGroup>,
+        params: VerifyingKey<C::TickGroup>,
         proof: Proof<C::TickGroup>,
     ) -> Self {
         Self {
@@ -136,7 +139,7 @@ where
             .iter()
             .flat_map(|input| {
                 input
-                    .into_repr()
+                    .into_bigint()
                     .as_ref()
                     .iter()
                     .flat_map(|l| l.to_le_bytes().to_vec())
@@ -177,7 +180,7 @@ where
                 .into_iter()
                 .flat_map(|input| {
                     input
-                        .into_repr()
+                        .into_bigint()
                         .as_ref()
                         .iter()
                         .flat_map(|l| l.to_le_bytes().to_vec())
@@ -210,13 +213,13 @@ where
 
         let vk_var =
             InnerVkVar::<C, TickPairing>::new_witness(ark_relations::ns!(cs, "Vk"), || {
-                Ok(&params.vk)
+                Ok(&params)
             })?;
         let proof_var =
             InnerProofVar::<C, TickPairing>::new_witness(ark_relations::ns!(cs, "Proof"), || {
                 Ok(proof.clone())
             })?;
-        <InnerVerifierGadget<C, TickPairing> as NIZKVerifierGadget<
+        <InnerVerifierGadget<C, TickPairing> as SNARKGadget<
             InnerProofSystem<C>,
             <C::TockGroup as Pairing>::ScalarField,
         >>::verify(&vk_var, input_gadgets.iter(), &proof_var)?
@@ -239,7 +242,7 @@ where
         ToConstraintField<<<C::TockGroup as Pairing>::ScalarField as Field>::BasePrimeField>,
 {
     inputs: Vec<<C::TickGroup as Pairing>::ScalarField>,
-    params: Parameters<C::TockGroup>,
+    params: VerifyingKey<C::TockGroup>,
     proof: Proof<C::TockGroup>,
     _curve_pair: PhantomData<C>,
     _tock_pairing: PhantomData<TockPairing>,
@@ -258,7 +261,7 @@ where
 {
     pub fn new(
         inputs: Vec<<C::TickGroup as Pairing>::ScalarField>,
-        params: Parameters<C::TockGroup>,
+        params: VerifyingKey<C::TockGroup>,
         proof: Proof<C::TockGroup>,
     ) -> Self {
         Self {
@@ -340,7 +343,7 @@ where
             MiddleProofVar::<C, TockPairing>::new_witness(r1cs_core::ns!(cs, "Proof"), || {
                 Ok(proof.clone())
             })?;
-        <MiddleVerifierGadget<C, TockPairing> as NIZKVerifierGadget<
+        <MiddleVerifierGadget<C, TockPairing> as SNARKGadget<
             MiddleProofSystem<C, TickPairing>,
             <C::TickGroup as Pairing>::ScalarField,
         >>::verify(&vk_var, &input_gadgets, &proof_var)?
