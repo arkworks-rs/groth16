@@ -50,7 +50,7 @@ print-trace = [ "ark-std/print-trace" ]
 [[example]]
 name = "recursive-snark"
 path = "examples/recursive-snark/groth16.rs"
-required-features = ["std"]
+required-features = ["std", "r1cs"]
 
 [[example]]
 name = "snark-scalability"
