@@ -47,16 +47,6 @@ parallel = ["std", "ark-ff/parallel", "ark-poly/parallel", "ark-ec/parallel", "a
 r1cs = [ "ark-crypto-primitives/r1cs", "ark-r1cs-std", "tracing", "derivative" ]
 print-trace = [ "ark-std/print-trace" ]
 
-[[example]]
-name = "recursive-snark"
-path = "examples/recursive-snark/groth16.rs"
-required-features = ["std", "r1cs"]
-
-[[example]]
-name = "snark-scalability"
-path = "examples/snark-scalability/groth16.rs"
-required-features = ["std"]
-
 [[bench]]
 name = "groth16-benches"
 path = "benches/bench.rs"
