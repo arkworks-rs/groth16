@@ -15,14 +15,14 @@ edition = "2021"
 ################################# Dependencies ################################
 
 [dependencies]
-ark-ff = { version = "^0.3.0", default-features = false }
-ark-ec = { version = "^0.3.0", default-features = false }
-ark-serialize = { version = "^0.3.0", default-features = false, features = [ "derive" ] }
-ark-poly = { version = "^0.3.0", default-features = false }
-ark-std = { version = "^0.3.0", default-features = false }
-ark-relations = { version = "^0.3.0", default-features = false }
-ark-crypto-primitives = { version = "^0.3.0", default-features = false }
-ark-r1cs-std = { version = "^0.3.0", default-features = false, optional = true }
+ark-ff = { version = "0.4.0-alpha", default-features = false }
+ark-ec = { version = "0.4.0-alpha", default-features = false }
+ark-serialize = { version = "0.4.0-alpha", default-features = false, features = [ "derive" ] }
+ark-poly = { version = "0.4.0-alpha", default-features = false }
+ark-std = { version = "0.4.0-alpha", default-features = false }
+ark-relations = { version = "0.4.0-alpha", default-features = false }
+ark-crypto-primitives = { version = "0.4.0-alpha", default-features = false }
+ark-r1cs-std = { version = "0.4.0-alpha", default-features = false, optional = true }
 
 tracing = { version = "0.1", default-features = false, features = [ "attributes" ], optional = true }
 derivative = { version = "2.0", features = ["use_core"], optional = true}
@@ -31,14 +31,14 @@ rayon = { version = "1", optional = true }
 
 [dev-dependencies]
 csv = { version = "1" }
-ark-bls12-381 = { version = "^0.3.0", default-features = false, features = ["curve"] }
-ark-bls12-377 = { version = "^0.3.0", default-features = false, features = ["curve"] }
-ark-cp6-782 = { version = "^0.3.0", default-features = false }
-ark-mnt4-298 = { version = "^0.3.0", default-features = false, features = ["r1cs", "curve"] }
-ark-mnt6-298 = { version = "^0.3.0", default-features = false, features = ["r1cs"] }
-ark-mnt4-753 = { version = "^0.3.0", default-features = false, features = ["r1cs", "curve"] }
-ark-mnt6-753 = { version = "^0.3.0", default-features = false, features = ["r1cs"] }
-ark-r1cs-std = { version = "^0.3.0", default-features = false }
+ark-bls12-381 = { version = "0.4.0-alpha", default-features = false, features = ["curve"] }
+ark-bls12-377 = { version = "0.4.0-alpha", default-features = false, features = ["curve"] }
+ark-cp6-782 = { version = "0.4.0-alpha", default-features = false }
+ark-mnt4-298 = { version = "0.4.0-alpha", default-features = false, features = ["r1cs", "curve"] }
+ark-mnt6-298 = { version = "0.4.0-alpha", default-features = false, features = ["r1cs"] }
+ark-mnt4-753 = { version = "0.4.0-alpha", default-features = false, features = ["r1cs", "curve"] }
+ark-mnt6-753 = { version = "0.4.0-alpha", default-features = false, features = ["r1cs"] }
+ark-r1cs-std = { version = "0.4.0-alpha", default-features = false }
 
 [features]
 default = ["parallel"]
@@ -46,16 +46,6 @@ std = ["ark-ff/std", "ark-ec/std", "ark-poly/std", "ark-relations/std", "ark-cry
 parallel = ["std", "ark-ff/parallel", "ark-poly/parallel", "ark-ec/parallel", "ark-crypto-primitives/parallel", "ark-std/parallel", "rayon"]
 r1cs = [ "ark-crypto-primitives/r1cs", "ark-r1cs-std", "tracing", "derivative" ]
 print-trace = [ "ark-std/print-trace" ]
-
-[[example]]
-name = "recursive-snark"
-path = "examples/recursive-snark/groth16.rs"
-required-features = ["std"]
-
-[[example]]
-name = "snark-scalability"
-path = "examples/snark-scalability/groth16.rs"
-required-features = ["std"]
 
 [[bench]]
 name = "groth16-benches"
@@ -87,22 +77,3 @@ lto = "thin"
 incremental = true
 debug-assertions = true
 debug = true
-
-[patch.crates-io]
-ark-ff = { git = "https://github.com/arkworks-rs/algebra", branch = "g2prepared-serialization" }
-ark-ec = { git = "https://github.com/arkworks-rs/algebra", branch = "g2prepared-serialization" }
-ark-serialize = { git = "https://github.com/arkworks-rs/algebra", branch = "g2prepared-serialization" }
-ark-poly = { git = "https://github.com/arkworks-rs/algebra", branch = "g2prepared-serialization" }
-ark-std = { git = "https://github.com/arkworks-rs/std" }
-ark-crypto-primitives = { git = "https://github.com/arkworks-rs/crypto-primitives" }
-ark-r1cs-std = { git = "https://github.com/arkworks-rs/r1cs-std" }
-ark-bls12-381 = { git = "https://github.com/arkworks-rs/curves" }
-ark-bls12-377 = { git = "https://github.com/arkworks-rs/curves" }
-ark-cp6-782 = { git = "https://github.com/arkworks-rs/curves" }
-ark-mnt4-298 = { git = "https://github.com/arkworks-rs/curves" }
-ark-mnt6-298 = { git = "https://github.com/arkworks-rs/curves" }
-ark-mnt4-753 = { git = "https://github.com/arkworks-rs/curves" }
-ark-mnt6-753 = { git = "https://github.com/arkworks-rs/curves" }
-ark-relations = {git = "https://github.com/arkworks-rs/snark", branch = "sync-algebra" }
-ark-snark = { git = "https://github.com/arkworks-rs/snark", branch = "sync-algebra" }
-ark-sponge = { git = "https://github.com/arkworks-rs/sponge", branch = "update-serialize" }

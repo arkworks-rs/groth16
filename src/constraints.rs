@@ -402,12 +402,10 @@ where
 mod test {
     use crate::{constraints::Groth16VerifierGadget, Groth16};
     use ark_crypto_primitives::snark::constraints::SNARKGadget;
-    use ark_crypto_primitives::snark::{CircuitSpecificSetupSNARK, SNARK};
-    use ark_ec::PairingEngine;
+    use ark_crypto_primitives::snark::SNARK;
+    use ark_ec::pairing::Pairing;
     use ark_ff::{Field, UniformRand};
-    use ark_mnt4_298::{
-        constraints::PairingVar as MNT4PairingVar, Fr as MNT4Fr, MNT4_298 as MNT4PairingEngine,
-    };
+    use ark_mnt4_298::{constraints::PairingVar as MNT4PairingVar, Fr as MNT4Fr, MNT4_298 as MNT4};
     use ark_mnt6_298::Fr as MNT6Fr;
     use ark_r1cs_std::bits::boolean::Boolean;
     use ark_r1cs_std::{alloc::AllocVar, eq::EqGadget};
@@ -415,8 +413,11 @@ mod test {
         lc, ns,
         r1cs::{ConstraintSynthesizer, ConstraintSystem, ConstraintSystemRef, SynthesisError},
     };
-    use ark_std::ops::MulAssign;
     use ark_std::test_rng;
+    use ark_std::{
+        ops::MulAssign,
+        rand::{RngCore, SeedableRng},
+    };
 
     #[derive(Copy, Clone)]
     struct Circuit<F: Field> {
@@ -453,12 +454,12 @@ mod test {
         }
     }
 
-    type TestSNARK = Groth16<MNT4PairingEngine>;
-    type TestSNARKGadget = Groth16VerifierGadget<MNT4PairingEngine, MNT4PairingVar>;
+    type TestSNARK = Groth16<MNT4>;
+    type TestSNARKGadget = Groth16VerifierGadget<MNT4, MNT4PairingVar>;
 
     #[test]
     fn groth16_snark_test() {
-        let mut rng = test_rng();
+        let mut rng = ark_std::rand::rngs::StdRng::seed_from_u64(test_rng().next_u64());
         let a = MNT4Fr::rand(&mut rng);
         let b = MNT4Fr::rand(&mut rng);
         let mut c = a;
@@ -471,7 +472,7 @@ mod test {
             num_variables: 25,
         };
 
-        let (pk, vk) = TestSNARK::setup(circ, &mut rng).unwrap();
+        let (pk, vk) = TestSNARK::circuit_specific_setup(circ, &mut rng).unwrap();
 
         let proof = TestSNARK::prove(&pk, circ.clone(), &mut rng).unwrap();
 
@@ -484,26 +485,26 @@ mod test {
         let cs = ConstraintSystemRef::new(cs_sys);
 
         let input_gadget = <TestSNARKGadget as SNARKGadget<
-            <MNT4PairingEngine as PairingEngine>::Fr,
-            <MNT4PairingEngine as PairingEngine>::Fq,
+            <MNT4 as Pairing>::ScalarField,
+            <MNT4 as Pairing>::BaseField,
             TestSNARK,
         >>::InputVar::new_input(ns!(cs, "new_input"), || Ok(vec![c]))
         .unwrap();
         let proof_gadget = <TestSNARKGadget as SNARKGadget<
-            <MNT4PairingEngine as PairingEngine>::Fr,
-            <MNT4PairingEngine as PairingEngine>::Fq,
+            <MNT4 as Pairing>::ScalarField,
+            <MNT4 as Pairing>::BaseField,
             TestSNARK,
         >>::ProofVar::new_witness(ns!(cs, "alloc_proof"), || Ok(proof))
         .unwrap();
         let vk_gadget = <TestSNARKGadget as SNARKGadget<
-            <MNT4PairingEngine as PairingEngine>::Fr,
-            <MNT4PairingEngine as PairingEngine>::Fq,
+            <MNT4 as Pairing>::ScalarField,
+            <MNT4 as Pairing>::BaseField,
             TestSNARK,
         >>::VerifyingKeyVar::new_constant(ns!(cs, "alloc_vk"), vk.clone())
         .unwrap();
         <TestSNARKGadget as SNARKGadget<
-            <MNT4PairingEngine as PairingEngine>::Fr,
-            <MNT4PairingEngine as PairingEngine>::Fq,
+            <MNT4 as Pairing>::ScalarField,
+            <MNT4 as Pairing>::BaseField,
             TestSNARK,
         >>::verify(&vk_gadget, &input_gadget, &proof_gadget)
         .unwrap()
@@ -518,8 +519,8 @@ mod test {
 
         let pvk = TestSNARK::process_vk(&vk).unwrap();
         let pvk_gadget = <TestSNARKGadget as SNARKGadget<
-            <MNT4PairingEngine as PairingEngine>::Fr,
-            <MNT4PairingEngine as PairingEngine>::Fq,
+            <MNT4 as Pairing>::ScalarField,
+            <MNT4 as Pairing>::BaseField,
             TestSNARK,
         >>::ProcessedVerifyingKeyVar::new_constant(
             ns!(cs, "alloc_pvk"), pvk.clone()
