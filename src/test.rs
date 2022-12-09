@@ -2,7 +2,7 @@ use crate::{
     create_random_proof, generate_random_parameters, prepare_verifying_key, rerandomize_proof,
     verify_proof,
 };
-use ark_ec::PairingEngine;
+use ark_ec::pairing::Pairing;
 use ark_ff::UniformRand;
 use ark_std::test_rng;
 
@@ -47,7 +47,7 @@ impl<ConstraintF: Field> ConstraintSynthesizer<ConstraintF> for MySillyCircuit<C
 
 fn test_prove_and_verify<E>(n_iters: usize)
 where
-    E: PairingEngine,
+    E: Pairing,
 {
     let rng = &mut test_rng();
 
@@ -57,8 +57,8 @@ where
     let pvk = prepare_verifying_key::<E>(&params.vk);
 
     for _ in 0..n_iters {
-        let a = E::Fr::rand(rng);
-        let b = E::Fr::rand(rng);
+        let a = E::ScalarField::rand(rng);
+        let b = E::ScalarField::rand(rng);
         let mut c = a;
         c.mul_assign(&b);
 
@@ -79,7 +79,7 @@ where
 
 fn test_rerandomize<E>()
 where
-    E: PairingEngine,
+    E: Pairing,
 {
     // First create an arbitrary Groth16 in the normal way
 
@@ -90,8 +90,8 @@ where
 
     let pvk = prepare_verifying_key::<E>(&params.vk);
 
-    let a = E::Fr::rand(rng);
-    let b = E::Fr::rand(rng);
+    let a = E::ScalarField::rand(rng);
+    let b = E::ScalarField::rand(rng);
     let c = a * &b;
 
     // Create the initial proof
@@ -115,9 +115,9 @@ where
     assert!(verify_proof(&pvk, &proof3, &[c]).unwrap());
 
     // Check soundness: a rerandomized proof fails to validate when the original fails to validate
-    assert!(!verify_proof(&pvk, &proof1, &[E::Fr::zero()]).unwrap());
-    assert!(!verify_proof(&pvk, &proof2, &[E::Fr::zero()]).unwrap());
-    assert!(!verify_proof(&pvk, &proof3, &[E::Fr::zero()]).unwrap());
+    assert!(!verify_proof(&pvk, &proof1, &[E::ScalarField::zero()]).unwrap());
+    assert!(!verify_proof(&pvk, &proof2, &[E::ScalarField::zero()]).unwrap());
+    assert!(!verify_proof(&pvk, &proof3, &[E::ScalarField::zero()]).unwrap());
 
     // Check that the proofs are not equal as group elements
     assert!(proof1 != proof2);
