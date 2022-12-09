@@ -65,7 +65,7 @@ impl<F: PrimeField> ConstraintSynthesizer<F> for DummyCircuit<F> {
 
 macro_rules! groth16_prove_bench {
     ($bench_name:ident, $bench_field:ty, $bench_pairing_engine:ty) => {
-        let rng = &mut ark_std::rand::rngs::StdRng::seed_from_u64(0u64);
+        let rng = &mut ark_std::test_rng();
         let c = DummyCircuit::<$bench_field> {
             a: Some(<$bench_field>::rand(rng)),
             b: Some(<$bench_field>::rand(rng)),
@@ -91,7 +91,7 @@ macro_rules! groth16_prove_bench {
 
 macro_rules! groth16_verify_bench {
     ($bench_name:ident, $bench_field:ty, $bench_pairing_engine:ty) => {
-        let rng = &mut ark_std::rand::rngs::StdRng::seed_from_u64(0u64);
+        let rng = &mut ark_std::test_rng();
         let c = DummyCircuit::<$bench_field> {
             a: Some(<$bench_field>::rand(rng)),
             b: Some(<$bench_field>::rand(rng)),
@@ -119,7 +119,6 @@ macro_rules! groth16_verify_bench {
 }
 
 fn bench_prove() {
-    use ark_std::rand::SeedableRng;
     groth16_prove_bench!(bls, BlsFr, Bls12_381);
     groth16_prove_bench!(mnt4, MNT4Fr, MNT4_298);
     groth16_prove_bench!(mnt6, MNT6Fr, MNT6_298);
@@ -128,7 +127,6 @@ fn bench_prove() {
 }
 
 fn bench_verify() {
-    use ark_std::rand::SeedableRng;
     groth16_verify_bench!(bls, BlsFr, Bls12_381);
     groth16_verify_bench!(mnt4, MNT4Fr, MNT4_298);
     groth16_verify_bench!(mnt6, MNT6Fr, MNT6_298);
