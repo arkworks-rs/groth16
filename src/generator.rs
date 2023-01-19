@@ -227,7 +227,7 @@ where
 
     // Compute the L-query
     let l_time = start_timer!(|| "Calculate L");
-    let l_query = FixedBaseMSM::multi_scalar_mul::<E::G1>(scalar_bits, g1_window, &g1_table, &l);
+    let l_query = FixedBase::multi_scalar_mul::<E::G1>(scalar_bits, g1_window, &g1_table, &l);
     drop(l);
     end_timer!(l_time);
 
