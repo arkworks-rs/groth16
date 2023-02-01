@@ -3,7 +3,7 @@
 // where N is the number of threads you want to use (N = 1 for single-thread).
 
 use ark_bls12_381::{Bls12_381, Fr as BlsFr};
-use ark_crypto_primitives::SNARK;
+use ark_crypto_primitives::snark::SNARK;
 use ark_ff::{PrimeField, UniformRand};
 use ark_groth16::Groth16;
 use ark_mnt4_298::{Fr as MNT4Fr, MNT4_298};
