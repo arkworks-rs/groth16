@@ -143,8 +143,8 @@ impl<'a, F: Field> ConstraintSynthesizer<F> for MiMCDemo<'a, F> {
 }
 
 #[test]
-fn test_mimc_gm_17() {
-    // We're going to use the Groth-Maller17 proving system.
+fn test_mimc_groth16() {
+    // We're going to use the Groth16 proving system.
     use ark_groth16::{
         create_random_proof, generate_random_parameters, prepare_verifying_key, verify_proof,
     };

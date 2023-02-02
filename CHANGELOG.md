@@ -10,6 +10,8 @@
 
 ### Improvements
 
+- [\#36](https://github.com/arkworks-rs/groth16/pull/36) Documentation updates and minor optimization in setup.
+
 ### Bug fixes
 
 ## v0.3.0
