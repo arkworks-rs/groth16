@@ -1,17 +1,14 @@
-use crate::{
-    create_random_proof, generate_random_parameters, prepare_verifying_key, rerandomize_proof,
-    verify_proof,
-};
+use crate::{prepare_verifying_key, Groth16};
+use ark_crypto_primitives::snark::{CircuitSpecificSetupSNARK, SNARK};
 use ark_ec::pairing::Pairing;
-use ark_ff::UniformRand;
-use ark_std::test_rng;
-
-use core::ops::MulAssign;
-
-use ark_ff::{Field, Zero};
+use ark_ff::Field;
 use ark_relations::{
     lc,
     r1cs::{ConstraintSynthesizer, ConstraintSystemRef, SynthesisError},
+};
+use ark_std::{
+    rand::{RngCore, SeedableRng},
+    test_rng, UniformRand,
 };
 
 struct MySillyCircuit<F: Field> {
@@ -30,7 +27,7 @@ impl<ConstraintF: Field> ConstraintSynthesizer<ConstraintF> for MySillyCircuit<C
             let mut a = self.a.ok_or(SynthesisError::AssignmentMissing)?;
             let b = self.b.ok_or(SynthesisError::AssignmentMissing)?;
 
-            a.mul_assign(&b);
+            a *= &b;
             Ok(a)
         })?;
 
@@ -49,31 +46,29 @@ fn test_prove_and_verify<E>(n_iters: usize)
 where
     E: Pairing,
 {
-    let rng = &mut test_rng();
+    let mut rng = ark_std::rand::rngs::StdRng::seed_from_u64(test_rng().next_u64());
 
-    let params =
-        generate_random_parameters::<E, _, _>(MySillyCircuit { a: None, b: None }, rng).unwrap();
-
-    let pvk = prepare_verifying_key::<E>(&params.vk);
+    let (pk, vk) = Groth16::<E>::setup(MySillyCircuit { a: None, b: None }, &mut rng).unwrap();
+    let pvk = prepare_verifying_key::<E>(&vk);
 
     for _ in 0..n_iters {
-        let a = E::ScalarField::rand(rng);
-        let b = E::ScalarField::rand(rng);
+        let a = E::ScalarField::rand(&mut rng);
+        let b = E::ScalarField::rand(&mut rng);
         let mut c = a;
-        c.mul_assign(&b);
+        c *= b;
 
-        let proof = create_random_proof(
+        let proof = Groth16::<E>::prove(
+            &pk,
             MySillyCircuit {
                 a: Some(a),
                 b: Some(b),
             },
-            &params,
-            rng,
+            &mut rng,
         )
         .unwrap();
 
-        assert!(verify_proof(&pvk, &proof, &[c]).unwrap());
-        assert!(!verify_proof(&pvk, &proof, &[a]).unwrap());
+        assert!(Groth16::<E>::verify_with_processed_vk(&pvk, &[c], &proof).unwrap());
+        assert!(!Groth16::<E>::verify_with_processed_vk(&pvk, &[a], &proof).unwrap());
     }
 }
 
@@ -81,48 +76,45 @@ fn test_rerandomize<E>()
 where
     E: Pairing,
 {
-    // First create an arbitrary Groth16 in the normal way
+    let mut rng = ark_std::rand::rngs::StdRng::seed_from_u64(test_rng().next_u64());
 
-    let rng = &mut test_rng();
+    let (pk, vk) = Groth16::<E>::setup(MySillyCircuit { a: None, b: None }, &mut rng).unwrap();
+    let pvk = prepare_verifying_key::<E>(&vk);
 
-    let params =
-        generate_random_parameters::<E, _, _>(MySillyCircuit { a: None, b: None }, rng).unwrap();
+    for _ in 0..10 {
+        let a = E::ScalarField::rand(&mut rng);
+        let b = E::ScalarField::rand(&mut rng);
+        let mut c = a;
+        c *= b;
 
-    let pvk = prepare_verifying_key::<E>(&params.vk);
+        let proof1 = Groth16::<E>::prove(
+            &pk,
+            MySillyCircuit {
+                a: Some(a),
+                b: Some(b),
+            },
+            &mut rng,
+        )
+        .unwrap();
 
-    let a = E::ScalarField::rand(rng);
-    let b = E::ScalarField::rand(rng);
-    let c = a * &b;
+        // Rerandomize the proof, then rerandomize that
+        let proof2 = Groth16::<E>::rerandomize_proof(&vk, &proof1, &mut rng);
+        let proof3 = Groth16::<E>::rerandomize_proof(&vk, &proof2, &mut rng);
 
-    // Create the initial proof
-    let proof1 = create_random_proof(
-        MySillyCircuit {
-            a: Some(a),
-            b: Some(b),
-        },
-        &params,
-        rng,
-    )
-    .unwrap();
+        // Check correctness: a rerandomized proof validates when the original validates
+        assert!(Groth16::<E>::verify_with_processed_vk(&pvk, &[c], &proof1).unwrap());
+        assert!(Groth16::<E>::verify_with_processed_vk(&pvk, &[c], &proof2).unwrap());
+        assert!(Groth16::<E>::verify_with_processed_vk(&pvk, &[c], &proof3).unwrap());
 
-    // Rerandomize the proof, then rerandomize that
-    let proof2 = rerandomize_proof(rng, &params.vk, &proof1);
-    let proof3 = rerandomize_proof(rng, &params.vk, &proof2);
+        assert!(!Groth16::<E>::verify_with_processed_vk(&pvk, &[a], &proof1).unwrap());
+        assert!(!Groth16::<E>::verify_with_processed_vk(&pvk, &[a], &proof2).unwrap());
+        assert!(!Groth16::<E>::verify_with_processed_vk(&pvk, &[a], &proof3).unwrap());
 
-    // Check correctness: a rerandomized proof validates when the original validates
-    assert!(verify_proof(&pvk, &proof1, &[c]).unwrap());
-    assert!(verify_proof(&pvk, &proof2, &[c]).unwrap());
-    assert!(verify_proof(&pvk, &proof3, &[c]).unwrap());
-
-    // Check soundness: a rerandomized proof fails to validate when the original fails to validate
-    assert!(!verify_proof(&pvk, &proof1, &[E::ScalarField::zero()]).unwrap());
-    assert!(!verify_proof(&pvk, &proof2, &[E::ScalarField::zero()]).unwrap());
-    assert!(!verify_proof(&pvk, &proof3, &[E::ScalarField::zero()]).unwrap());
-
-    // Check that the proofs are not equal as group elements
-    assert!(proof1 != proof2);
-    assert!(proof1 != proof3);
-    assert!(proof2 != proof3);
+        // Check that the proofs are not equal as group elements
+        assert!(proof1 != proof2);
+        assert!(proof1 != proof3);
+        assert!(proof2 != proof3);
+    }
 }
 
 mod bls12_377 {

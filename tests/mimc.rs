@@ -10,8 +10,9 @@
     unsafe_code
 )]
 
+use ark_crypto_primitives::snark::{CircuitSpecificSetupSNARK, SNARK};
 // For randomness (during paramgen and proof generation)
-use ark_std::rand::Rng;
+use ark_std::rand::{Rng, RngCore, SeedableRng};
 
 // For benchmarking
 use std::time::{Duration, Instant};
@@ -145,13 +146,11 @@ impl<'a, F: Field> ConstraintSynthesizer<F> for MiMCDemo<'a, F> {
 #[test]
 fn test_mimc_groth16() {
     // We're going to use the Groth16 proving system.
-    use ark_groth16::{
-        create_random_proof, generate_random_parameters, prepare_verifying_key, verify_proof,
-    };
+    use ark_groth16::Groth16;
 
     // This may not be cryptographically safe, use
     // `OsRng` (for example) in production software.
-    let rng = &mut test_rng();
+    let mut rng = ark_std::rand::rngs::StdRng::seed_from_u64(test_rng().next_u64());
 
     // Generate the MiMC round constants
     let constants = (0..MIMC_ROUNDS).map(|_| rng.gen()).collect::<Vec<_>>();
@@ -159,18 +158,18 @@ fn test_mimc_groth16() {
     println!("Creating parameters...");
 
     // Create parameters for our circuit
-    let params = {
+    let (pk, vk) = {
         let c = MiMCDemo::<Fr> {
             xl: None,
             xr: None,
             constants: &constants,
         };
 
-        generate_random_parameters::<Bls12_377, _, _>(c, rng).unwrap()
+        Groth16::<Bls12_377>::setup(c, &mut rng).unwrap()
     };
 
     // Prepare the verification key (for proof verification)
-    let pvk = prepare_verifying_key(&params.vk);
+    let pvk = Groth16::<Bls12_377>::process_vk(&vk).unwrap();
 
     println!("Creating proofs...");
 
@@ -202,8 +201,10 @@ fn test_mimc_groth16() {
             };
 
             // Create a groth16 proof with our parameters.
-            let proof = create_random_proof(c, &params, rng).unwrap();
-            assert!(verify_proof(&pvk, &proof, &[image]).unwrap());
+            let proof = Groth16::<Bls12_377>::prove(&pk, c, &mut rng).unwrap();
+            assert!(
+                Groth16::<Bls12_377>::verify_with_processed_vk(&pvk, &[image], &proof).unwrap()
+            );
 
             // proof.write(&mut proof_vec).unwrap();
         }
