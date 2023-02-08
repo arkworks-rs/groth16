@@ -4,9 +4,12 @@
 
 ### Breaking changes
 
+- [\#44](https://github.com/arkworks-rs/groth16/pull/44) Move free functions in `generator.rs`, `prover.rs`, `verifier.rs` to methods on `Groth16` struct.
+
 ### Features
 
 - [\#34](https://github.com/arkworks-rs/groth16/pull/34) Allow specifying custom R1CS to QAP reductions.
+- [\#44](https://github.com/arkworks-rs/groth16/pull/44) Extend \#34 by adding support for custom QAP reductions to the `Groth16` struct directly.
 
 ### Improvements
 

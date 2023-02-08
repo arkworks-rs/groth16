@@ -46,7 +46,7 @@ where
 
 /// Computes instance and witness reductions from R1CS to
 /// Quadratic Arithmetic Programs (QAPs).
-pub trait R1CStoQAP {
+pub trait R1CSToQAP {
     /// Computes a QAP instance corresponding to the R1CS instance defined by `cs`.
     fn instance_map_with_evaluation<F: PrimeField, D: EvaluationDomain<F>>(
         cs: ConstraintSystemRef<F>,
@@ -100,7 +100,7 @@ pub trait R1CStoQAP {
 /// Computes the R1CS-to-QAP reduction defined in [`libsnark`](https://github.com/scipr-lab/libsnark/blob/2af440246fa2c3d0b1b0a425fb6abd8cc8b9c54d/libsnark/reductions/r1cs_to_qap/r1cs_to_qap.tcc).
 pub struct LibsnarkReduction;
 
-impl R1CStoQAP for LibsnarkReduction {
+impl R1CSToQAP for LibsnarkReduction {
     #[inline]
     #[allow(clippy::type_complexity)]
     fn instance_map_with_evaluation<F: PrimeField, D: EvaluationDomain<F>>(

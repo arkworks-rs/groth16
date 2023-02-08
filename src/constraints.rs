@@ -1,4 +1,7 @@
-use crate::{Groth16, PreparedVerifyingKey, Proof, VerifyingKey};
+use crate::{
+    r1cs_to_qap::{LibsnarkReduction, R1CSToQAP},
+    Groth16, PreparedVerifyingKey, Proof, VerifyingKey,
+};
 use ark_crypto_primitives::snark::constraints::{CircuitSpecificSetupSNARKGadget, SNARKGadget};
 use ark_crypto_primitives::snark::{BooleanInputVar, SNARK};
 use ark_ec::{pairing::Pairing, AffineRepr, CurveGroup};
@@ -85,17 +88,23 @@ pub struct PreparedVerifyingKeyVar<E: Pairing, P: PairingVar<E, BasePrimeField<E
 }
 
 /// Constraints for the verifier of the SNARK of [[Groth16]](https://eprint.iacr.org/2016/260.pdf).
-pub struct Groth16VerifierGadget<E, P>
+pub struct Groth16VerifierGadget<E, P, QAP = LibsnarkReduction>
 where
     E: Pairing,
     P: PairingVar<E, BasePrimeField<E>>,
+    QAP: R1CSToQAP,
 {
     _pairing_engine: PhantomData<E>,
     _pairing_gadget: PhantomData<P>,
+    _qap: PhantomData<QAP>,
 }
 
-impl<E: Pairing, P: PairingVar<E, BasePrimeField<E>>>
-    SNARKGadget<E::ScalarField, BasePrimeField<E>, Groth16<E>> for Groth16VerifierGadget<E, P>
+impl<E, QAP, P> SNARKGadget<E::ScalarField, BasePrimeField<E>, Groth16<E, QAP>>
+    for Groth16VerifierGadget<E, P, QAP>
+where
+    E: Pairing,
+    QAP: R1CSToQAP,
+    P: PairingVar<E, BasePrimeField<E>>,
 {
     type ProcessedVerifyingKeyVar = PreparedVerifyingKeyVar<E, P>;
     type VerifyingKeyVar = VerifyingKeyVar<E, P>;
@@ -253,11 +262,13 @@ impl<E: Pairing, P: PairingVar<E, BasePrimeField<E>>>
     }
 }
 
-impl<E, P> CircuitSpecificSetupSNARKGadget<E::ScalarField, BasePrimeField<E>, Groth16<E>>
-    for Groth16VerifierGadget<E, P>
+impl<E, P, QAP: R1CSToQAP>
+    CircuitSpecificSetupSNARKGadget<E::ScalarField, BasePrimeField<E>, Groth16<E, QAP>>
+    for Groth16VerifierGadget<E, P, QAP>
 where
     E: Pairing,
     P: PairingVar<E, BasePrimeField<E>>,
+    QAP: R1CSToQAP,
 {
 }
 
