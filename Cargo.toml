@@ -1,6 +1,6 @@
 [package]
 name = "ark-groth16"
-version = "0.3.0"
+version = "0.4.0"
 authors = [ "arkworks contributors" ]
 description = "An implementation of the Groth 2016 zkSNARK proof system"
 homepage = "https://arkworks.rs"
