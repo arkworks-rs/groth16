@@ -1,6 +1,9 @@
+use core::iter;
+
 use crate::{r1cs_to_qap::R1CSToQAP, Groth16, ProvingKey, Vec, VerifyingKey};
+use ark_ec::AffineRepr;
 use ark_ec::{pairing::Pairing, scalar_mul::fixed_base::FixedBase, CurveGroup, Group};
-use ark_ff::{Field, PrimeField, UniformRand, Zero};
+use ark_ff::{Field, PrimeField, UniformRand, Zero, FftField};
 use ark_poly::{EvaluationDomain, GeneralEvaluationDomain};
 use ark_relations::r1cs::{
     ConstraintSynthesizer, ConstraintSystem, OptimizationGoal, Result as R1CSResult,
@@ -11,6 +14,24 @@ use ark_std::{cfg_into_iter, cfg_iter};
 
 #[cfg(feature = "parallel")]
 use rayon::prelude::*;
+
+fn compute_lagrange_basis_commitments_over_domain<C: AffineRepr>(
+    domain: &GeneralEvaluationDomain<C::ScalarField>,
+    powers_of_tau: &[C::Group],
+) -> Vec<C> {
+    let shift = domain.coset_offset();
+    let shift_inv = shift.inverse().unwrap();
+
+    let inv_coset_domain = domain.get_coset(shift_inv).unwrap();
+    let n_inv = domain.size_as_field_element().inverse().unwrap();
+
+    let p_evals: Vec<C::Group> = inv_coset_domain.fft(powers_of_tau);
+    let mut p_evals_reversed: Vec<C::Group> = iter::once(p_evals[0] * n_inv)
+        .chain(p_evals.into_iter().skip(1).map(|pi| pi * n_inv).rev())
+        .collect();
+
+    C::Group::normalize_batch(&mut p_evals_reversed)
+}
 
 impl<E: Pairing, QAP: R1CSToQAP> Groth16<E, QAP> {
     /// Generates a random common reference string for
@@ -175,6 +196,9 @@ impl<E: Pairing, QAP: R1CSToQAP> Groth16<E, QAP> {
             &QAP::h_query_scalars::<_, D<E::ScalarField>>(m_raw - 1, t, zt, delta_inverse)?,
         );
 
+        let coset_domain = domain.get_coset(E::ScalarField::GENERATOR).unwrap();
+        let h_query = compute_lagrange_basis_commitments_over_domain::<E::G1Affine>(&coset_domain, &h_query);
+
         end_timer!(h_time);
 
         // Compute the L-query
@@ -206,7 +230,6 @@ impl<E: Pairing, QAP: R1CSToQAP> Groth16<E, QAP> {
         let a_query = E::G1::normalize_batch(&a_query);
         let b_g1_query = E::G1::normalize_batch(&b_g1_query);
         let b_g2_query = E::G2::normalize_batch(&b_g2_query);
-        let h_query = E::G1::normalize_batch(&h_query);
         let l_query = E::G1::normalize_batch(&l_query);
         end_timer!(batch_normalization_time);
         end_timer!(setup_time);
