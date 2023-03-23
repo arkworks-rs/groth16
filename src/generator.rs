@@ -3,7 +3,7 @@ use core::iter;
 use crate::{r1cs_to_qap::R1CSToQAP, Groth16, ProvingKey, Vec, VerifyingKey};
 use ark_ec::AffineRepr;
 use ark_ec::{pairing::Pairing, scalar_mul::fixed_base::FixedBase, CurveGroup, Group};
-use ark_ff::{Field, PrimeField, UniformRand, Zero, FftField};
+use ark_ff::{FftField, Field, PrimeField, UniformRand, Zero};
 use ark_poly::{EvaluationDomain, GeneralEvaluationDomain};
 use ark_relations::r1cs::{
     ConstraintSynthesizer, ConstraintSystem, OptimizationGoal, Result as R1CSResult,
@@ -197,7 +197,8 @@ impl<E: Pairing, QAP: R1CSToQAP> Groth16<E, QAP> {
         );
 
         let coset_domain = domain.get_coset(E::ScalarField::GENERATOR).unwrap();
-        let h_query = compute_lagrange_basis_commitments_over_domain::<E::G1Affine>(&coset_domain, &h_query);
+        let h_query =
+            compute_lagrange_basis_commitments_over_domain::<E::G1Affine>(&coset_domain, &h_query);
 
         end_timer!(h_time);
 
