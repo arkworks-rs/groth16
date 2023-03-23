@@ -207,8 +207,6 @@ impl R1CSToQAP for LibsnarkReduction {
             *ab_i *= &vanishing_polynomial_over_coset;
         });
 
-        coset_domain.ifft_in_place(&mut ab);
-
         Ok(ab)
     }
 
