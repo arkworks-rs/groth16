@@ -6,7 +6,6 @@
     stable_features,
     non_shorthand_field_patterns,
     renamed_and_removed_lints,
-    private_in_public,
     unsafe_code
 )]
 
