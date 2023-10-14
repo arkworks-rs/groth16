@@ -133,7 +133,7 @@ impl<E: Pairing, QAP: R1CSToQAP> Groth16<E, QAP> {
         end_timer!(g2_time);
 
         // Compute the B-query in G2
-        let b_g2_time = start_timer!(|| "Calculate B G2");
+        let b_g2_time = start_timer!(|| format!("Calculate B G2 of size {}", b.len()));
         let b_g2_query = FixedBase::msm::<E::G2>(scalar_bits, g2_window, &g2_table, &b);
         drop(g2_table);
         end_timer!(b_g2_time);

@@ -16,8 +16,10 @@ use ark_relations::{
 };
 use ark_std::ops::Mul;
 
-const NUM_PROVE_REPEATITIONS: usize = 10;
-const NUM_VERIFY_REPEATITIONS: usize = 50;
+const NUM_PROVE_REPETITIONS: usize = 1;
+const NUM_VERIFY_REPETITIONS: usize = 50;
+const NUM_CONSTRAINTS: usize = (1 << 20) - 100;
+const NUM_VARIABLES: usize = (1 << 20) - 100;
 
 #[derive(Copy)]
 struct DummyCircuit<F: PrimeField> {
@@ -69,22 +71,27 @@ macro_rules! groth16_prove_bench {
         let c = DummyCircuit::<$bench_field> {
             a: Some(<$bench_field>::rand(rng)),
             b: Some(<$bench_field>::rand(rng)),
-            num_variables: 10,
-            num_constraints: 65536,
+            num_variables: NUM_VARIABLES,
+            num_constraints: NUM_CONSTRAINTS,
         };
 
         let (pk, _) = Groth16::<$bench_pairing_engine>::circuit_specific_setup(c, rng).unwrap();
 
         let start = ark_std::time::Instant::now();
 
-        for _ in 0..NUM_PROVE_REPEATITIONS {
+        for _ in 0..NUM_PROVE_REPETITIONS {
             let _ = Groth16::<$bench_pairing_engine>::prove(&pk, c.clone(), rng).unwrap();
         }
 
         println!(
             "per-constraint proving time for {}: {} ns/constraint",
             stringify!($bench_pairing_engine),
-            start.elapsed().as_nanos() / NUM_PROVE_REPEATITIONS as u128 / 65536u128
+            start.elapsed().as_nanos() / (NUM_PROVE_REPETITIONS as u128 * NUM_CONSTRAINTS as u128)
+        );
+        println!(
+            "wall-clock proving time for {}: {} s",
+            stringify!($bench_pairing_engine),
+            start.elapsed().as_secs_f64() / NUM_PROVE_REPETITIONS as f64
         );
     };
 }
@@ -96,7 +103,7 @@ macro_rules! groth16_verify_bench {
             a: Some(<$bench_field>::rand(rng)),
             b: Some(<$bench_field>::rand(rng)),
             num_variables: 10,
-            num_constraints: 65536,
+            num_constraints: NUM_CONSTRAINTS,
         };
 
         let (pk, vk) = Groth16::<$bench_pairing_engine>::circuit_specific_setup(c, rng).unwrap();
@@ -106,14 +113,14 @@ macro_rules! groth16_verify_bench {
 
         let start = ark_std::time::Instant::now();
 
-        for _ in 0..NUM_VERIFY_REPEATITIONS {
+        for _ in 0..NUM_VERIFY_REPETITIONS {
             let _ = Groth16::<$bench_pairing_engine>::verify(&vk, &vec![v], &proof).unwrap();
         }
 
         println!(
             "verifying time for {}: {} ns",
             stringify!($bench_pairing_engine),
-            start.elapsed().as_nanos() / NUM_VERIFY_REPEATITIONS as u128
+            start.elapsed().as_nanos() / NUM_VERIFY_REPETITIONS as u128
         );
     };
 }
