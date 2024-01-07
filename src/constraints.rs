@@ -417,7 +417,7 @@ mod test {
     use ark_ff::{Field, UniformRand};
     use ark_mnt4_298::{constraints::PairingVar as MNT4PairingVar, Fr as MNT4Fr, MNT4_298 as MNT4};
     use ark_mnt6_298::Fr as MNT6Fr;
-    use ark_r1cs_std::bits::boolean::Boolean;
+    use ark_r1cs_std::boolean::Boolean;
     use ark_r1cs_std::{alloc::AllocVar, eq::EqGadget};
     use ark_relations::{
         lc, ns,

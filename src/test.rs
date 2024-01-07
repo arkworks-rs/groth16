@@ -132,18 +132,18 @@ mod bls12_377 {
     }
 }
 
-mod cp6_782 {
+mod bw6_761 {
     use super::{test_prove_and_verify, test_rerandomize};
 
-    use ark_cp6_782::CP6_782;
+    use ark_bw6_761::BW6_761;
 
     #[test]
     fn prove_and_verify() {
-        test_prove_and_verify::<CP6_782>(1);
+        test_prove_and_verify::<BW6_761>(1);
     }
 
     #[test]
     fn rerandomize() {
-        test_rerandomize::<CP6_782>();
+        test_rerandomize::<BW6_761>();
     }
 }

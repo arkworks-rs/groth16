@@ -33,7 +33,7 @@ rayon = { version = "1", optional = true }
 csv = { version = "1" }
 ark-bls12-381 = { version = "0.4.0", default-features = false, features = ["curve"] }
 ark-bls12-377 = { version = "0.4.0", default-features = false, features = ["curve"] }
-ark-cp6-782 = { version = "0.4.0", default-features = false }
+ark-bw6-761 = { version = "0.4.0", default-features = false }
 ark-mnt4-298 = { version = "0.4.0", default-features = false, features = ["r1cs", "curve"] }
 ark-mnt6-298 = { version = "0.4.0", default-features = false, features = ["r1cs"] }
 ark-mnt4-753 = { version = "0.4.0", default-features = false, features = ["r1cs", "curve"] }
@@ -84,10 +84,16 @@ ark-ff = { git = "https://github.com/arkworks-rs/algebra/" }
 ark-ec = { git = "https://github.com/arkworks-rs/algebra/" }
 ark-poly = { git = "https://github.com/arkworks-rs/algebra/" }
 ark-serialize = { git = "https://github.com/arkworks-rs/algebra/" }
-ark-r1cs-std = { git = "https://github.com/arkworks-rs/r1cs-std/" }
-ark-crypto-primitives = { git = "https://github.com/arkworks-rs/crypto-primitives/" }
-ark-relations = { git = "https://github.com/arkworks-rs/snark/" }
-ark-snark = { git = "https://github.com/arkworks-rs/snark/" }
+ark-bls12-381 = { git = "https://github.com/arkworks-rs/algebra/" }
 ark-mnt4-298 = { git = "https://github.com/arkworks-rs/algebra/" }
 ark-mnt6-298 = { git = "https://github.com/arkworks-rs/algebra/" }
+ark-mnt4-753 = { git = "https://github.com/arkworks-rs/algebra/" }
+ark-mnt6-753 = { git = "https://github.com/arkworks-rs/algebra/" }
 ark-bls12-377 = { git = "https://github.com/arkworks-rs/algebra/" }
+ark-bw6-761 = { git = "https://github.com/arkworks-rs/algebra/" }
+
+ark-r1cs-std = { git = "https://github.com/arkworks-rs/r1cs-std/" }
+ark-crypto-primitives = { git = "https://github.com/arkworks-rs/crypto-primitives/" }
+
+ark-relations = { git = "https://github.com/arkworks-rs/snark/" }
+ark-snark = { git = "https://github.com/arkworks-rs/snark/" }
