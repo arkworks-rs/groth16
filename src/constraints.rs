@@ -4,26 +4,26 @@ use crate::{
 };
 use ark_crypto_primitives::snark::constraints::{CircuitSpecificSetupSNARKGadget, SNARKGadget};
 use ark_crypto_primitives::snark::{BooleanInputVar, SNARK};
-use ark_ec::{pairing::Pairing, AffineRepr, CurveGroup};
+use ark_ec::{pairing::Pairing, AffineRepr};
 use ark_ff::Field;
 use ark_r1cs_std::groups::CurveVar;
 use ark_r1cs_std::{
     alloc::{AllocVar, AllocationMode},
-    bits::boolean::Boolean,
-    bits::uint8::UInt8,
+    boolean::Boolean,
+    uint8::UInt8,
     eq::EqGadget,
     pairing::PairingVar,
-    ToBitsGadget, ToBytesGadget,
+    convert::{ToBitsGadget, ToBytesGadget},
 };
 use ark_relations::r1cs::{Namespace, SynthesisError};
 use ark_std::{borrow::Borrow, marker::PhantomData, vec::Vec};
 
-type BasePrimeField<E> = <<<E as Pairing>::G1 as CurveGroup>::BaseField as Field>::BasePrimeField;
+type BasePrimeField<E> = <<E as Pairing>::BaseField as Field>::BasePrimeField;
 
 /// The proof variable for the Groth16 construction
 #[derive(Derivative)]
 #[derivative(Clone(bound = "P::G1Var: Clone, P::G2Var: Clone"))]
-pub struct ProofVar<E: Pairing, P: PairingVar<E, BasePrimeField<E>>> {
+pub struct ProofVar<E: Pairing, P: PairingVar<E>> {
     /// The `A` element in `G1`.
     pub a: P::G1Var,
     /// The `B` element in `G2`.
@@ -35,10 +35,10 @@ pub struct ProofVar<E: Pairing, P: PairingVar<E, BasePrimeField<E>>> {
 /// A variable representing the Groth16 verifying key in the constraint system.
 #[derive(Derivative)]
 #[derivative(
-    Clone(bound = "P::G1Var: Clone, P::GTVar: Clone, P::G1PreparedVar: Clone, \
-    P::G2PreparedVar: Clone, ")
+    Clone(bound = 
+        "P::G1Var: Clone, P::GTVar: Clone, P::G1PreparedVar: Clone, P::G2PreparedVar: Clone")
 )]
-pub struct VerifyingKeyVar<E: Pairing, P: PairingVar<E, BasePrimeField<E>>> {
+pub struct VerifyingKeyVar<E: Pairing, P: PairingVar<E>> {
     #[doc(hidden)]
     pub alpha_g1: P::G1Var,
     #[doc(hidden)]
@@ -51,7 +51,7 @@ pub struct VerifyingKeyVar<E: Pairing, P: PairingVar<E, BasePrimeField<E>>> {
     pub gamma_abc_g1: Vec<P::G1Var>,
 }
 
-impl<E: Pairing, P: PairingVar<E, BasePrimeField<E>>> VerifyingKeyVar<E, P> {
+impl<E: Pairing, P: PairingVar<E>> VerifyingKeyVar<E, P> {
     /// Prepare `self` for use in proof verification.
     pub fn prepare(&self) -> Result<PreparedVerifyingKeyVar<E, P>, SynthesisError> {
         let alpha_g1_pc = P::prepare_g1(&self.alpha_g1)?;
@@ -76,7 +76,7 @@ impl<E: Pairing, P: PairingVar<E, BasePrimeField<E>>> VerifyingKeyVar<E, P> {
     Clone(bound = "P::G1Var: Clone, P::GTVar: Clone, P::G1PreparedVar: Clone, \
     P::G2PreparedVar: Clone, ")
 )]
-pub struct PreparedVerifyingKeyVar<E: Pairing, P: PairingVar<E, BasePrimeField<E>>> {
+pub struct PreparedVerifyingKeyVar<E: Pairing, P: PairingVar<E>> {
     #[doc(hidden)]
     pub alpha_g1_beta_g2: P::GTVar,
     #[doc(hidden)]
@@ -91,7 +91,7 @@ pub struct PreparedVerifyingKeyVar<E: Pairing, P: PairingVar<E, BasePrimeField<E
 pub struct Groth16VerifierGadget<E, P, QAP = LibsnarkReduction>
 where
     E: Pairing,
-    P: PairingVar<E, BasePrimeField<E>>,
+    P: PairingVar<E>,
     QAP: R1CSToQAP,
 {
     _pairing_engine: PhantomData<E>,
@@ -104,7 +104,7 @@ impl<E, QAP, P> SNARKGadget<E::ScalarField, BasePrimeField<E>, Groth16<E, QAP>>
 where
     E: Pairing,
     QAP: R1CSToQAP,
-    P: PairingVar<E, BasePrimeField<E>>,
+    P: PairingVar<E>,
 {
     type ProcessedVerifyingKeyVar = PreparedVerifyingKeyVar<E, P>;
     type VerifyingKeyVar = VerifyingKeyVar<E, P>;
@@ -267,7 +267,7 @@ impl<E, P, QAP: R1CSToQAP>
     for Groth16VerifierGadget<E, P, QAP>
 where
     E: Pairing,
-    P: PairingVar<E, BasePrimeField<E>>,
+    P: PairingVar<E>,
     QAP: R1CSToQAP,
 {
 }
@@ -275,7 +275,7 @@ where
 impl<E, P> AllocVar<PreparedVerifyingKey<E>, BasePrimeField<E>> for PreparedVerifyingKeyVar<E, P>
 where
     E: Pairing,
-    P: PairingVar<E, BasePrimeField<E>>,
+    P: PairingVar<E>,
 {
     #[tracing::instrument(target = "r1cs", skip(cs, f))]
     fn new_variable<T: Borrow<PreparedVerifyingKey<E>>>(
@@ -325,7 +325,7 @@ where
 impl<E, P> AllocVar<VerifyingKey<E>, BasePrimeField<E>> for VerifyingKeyVar<E, P>
 where
     E: Pairing,
-    P: PairingVar<E, BasePrimeField<E>>,
+    P: PairingVar<E>,
 {
     #[tracing::instrument(target = "r1cs", skip(cs, f))]
     fn new_variable<T: Borrow<VerifyingKey<E>>>(
@@ -368,7 +368,7 @@ where
 impl<E, P> AllocVar<Proof<E>, BasePrimeField<E>> for ProofVar<E, P>
 where
     E: Pairing,
-    P: PairingVar<E, BasePrimeField<E>>,
+    P: PairingVar<E>,
 {
     #[tracing::instrument(target = "r1cs", skip(cs, f))]
     fn new_variable<T: Borrow<Proof<E>>>(
@@ -392,18 +392,18 @@ where
 impl<E, P> ToBytesGadget<BasePrimeField<E>> for VerifyingKeyVar<E, P>
 where
     E: Pairing,
-    P: PairingVar<E, BasePrimeField<E>>,
+    P: PairingVar<E>,
 {
     #[inline]
     #[tracing::instrument(target = "r1cs", skip(self))]
-    fn to_bytes(&self) -> Result<Vec<UInt8<BasePrimeField<E>>>, SynthesisError> {
+    fn to_bytes_le(&self) -> Result<Vec<UInt8<BasePrimeField<E>>>, SynthesisError> {
         let mut bytes = Vec::new();
-        bytes.extend_from_slice(&self.alpha_g1.to_bytes()?);
-        bytes.extend_from_slice(&self.beta_g2.to_bytes()?);
-        bytes.extend_from_slice(&self.gamma_g2.to_bytes()?);
-        bytes.extend_from_slice(&self.delta_g2.to_bytes()?);
+        bytes.extend_from_slice(&self.alpha_g1.to_bytes_le()?);
+        bytes.extend_from_slice(&self.beta_g2.to_bytes_le()?);
+        bytes.extend_from_slice(&self.gamma_g2.to_bytes_le()?);
+        bytes.extend_from_slice(&self.delta_g2.to_bytes_le()?);
         for g in &self.gamma_abc_g1 {
-            bytes.extend_from_slice(&g.to_bytes()?);
+            bytes.extend_from_slice(&g.to_bytes_le()?);
         }
         Ok(bytes)
     }

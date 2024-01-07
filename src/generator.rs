@@ -1,5 +1,5 @@
 use crate::{r1cs_to_qap::R1CSToQAP, Groth16, ProvingKey, Vec, VerifyingKey};
-use ark_ec::{pairing::Pairing, scalar_mul::fixed_base::FixedBase, CurveGroup, Group};
+use ark_ec::{pairing::Pairing, scalar_mul::fixed_base::FixedBase, CurveGroup};
 use ark_ff::{Field, PrimeField, UniformRand, Zero};
 use ark_poly::{EvaluationDomain, GeneralEvaluationDomain};
 use ark_relations::r1cs::{
@@ -148,11 +148,11 @@ impl<E: Pairing, QAP: R1CSToQAP> Groth16<E, QAP> {
         // Generate the R1CS proving key
         let proving_key_time = start_timer!(|| "Generate the R1CS proving key");
 
-        let alpha_g1 = g1_generator.mul_bigint(&alpha.into_bigint());
-        let beta_g1 = g1_generator.mul_bigint(&beta.into_bigint());
-        let beta_g2 = g2_generator.mul_bigint(&beta.into_bigint());
-        let delta_g1 = g1_generator.mul_bigint(&delta.into_bigint());
-        let delta_g2 = g2_generator.mul_bigint(&delta.into_bigint());
+        let alpha_g1 = g1_generator * &alpha;
+        let beta_g1 = g1_generator * &beta;
+        let beta_g2 = g2_generator * &beta;
+        let delta_g1 = g1_generator * &delta;
+        let delta_g2 = g2_generator * &delta;
 
         // Compute the A-query
         let a_time = start_timer!(|| "Calculate A");
@@ -187,7 +187,7 @@ impl<E: Pairing, QAP: R1CSToQAP> Groth16<E, QAP> {
 
         // Generate R1CS verification key
         let verifying_key_time = start_timer!(|| "Generate the R1CS verification key");
-        let gamma_g2 = g2_generator.mul_bigint(&gamma.into_bigint());
+        let gamma_g2 = g2_generator * &gamma;
         let gamma_abc_g1 = FixedBase::msm::<E::G1>(scalar_bits, g1_window, &g1_table, &gamma_abc);
 
         drop(g1_table);

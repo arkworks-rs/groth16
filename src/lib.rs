@@ -42,7 +42,7 @@ pub mod constraints;
 mod test;
 
 pub use self::data_structures::*;
-pub use self::{generator::*, prover::*, verifier::*};
+pub use self::{verifier::*};
 
 use ark_crypto_primitives::snark::*;
 use ark_ec::pairing::Pairing;
