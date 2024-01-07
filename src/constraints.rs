@@ -10,10 +10,10 @@ use ark_r1cs_std::groups::CurveVar;
 use ark_r1cs_std::{
     alloc::{AllocVar, AllocationMode},
     boolean::Boolean,
-    uint8::UInt8,
+    convert::{ToBitsGadget, ToBytesGadget},
     eq::EqGadget,
     pairing::PairingVar,
-    convert::{ToBitsGadget, ToBytesGadget},
+    uint8::UInt8,
 };
 use ark_relations::r1cs::{Namespace, SynthesisError};
 use ark_std::{borrow::Borrow, marker::PhantomData, vec::Vec};
@@ -34,10 +34,9 @@ pub struct ProofVar<E: Pairing, P: PairingVar<E>> {
 
 /// A variable representing the Groth16 verifying key in the constraint system.
 #[derive(Derivative)]
-#[derivative(
-    Clone(bound = 
-        "P::G1Var: Clone, P::GTVar: Clone, P::G1PreparedVar: Clone, P::G2PreparedVar: Clone")
-)]
+#[derivative(Clone(
+    bound = "P::G1Var: Clone, P::GTVar: Clone, P::G1PreparedVar: Clone, P::G2PreparedVar: Clone"
+))]
 pub struct VerifyingKeyVar<E: Pairing, P: PairingVar<E>> {
     #[doc(hidden)]
     pub alpha_g1: P::G1Var,
