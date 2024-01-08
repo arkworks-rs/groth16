@@ -14,7 +14,6 @@ use ark_relations::{
     lc,
     r1cs::{ConstraintSynthesizer, ConstraintSystemRef, SynthesisError},
 };
-use ark_std::ops::Mul;
 
 const NUM_PROVE_REPETITIONS: usize = 1;
 const NUM_VERIFY_REPETITIONS: usize = 50;
@@ -109,7 +108,7 @@ macro_rules! groth16_verify_bench {
         let (pk, vk) = Groth16::<$bench_pairing_engine>::circuit_specific_setup(c, rng).unwrap();
         let proof = Groth16::<$bench_pairing_engine>::prove(&pk, c.clone(), rng).unwrap();
 
-        let v = c.a.unwrap().mul(c.b.unwrap());
+        let v = c.a.unwrap() * c.b.unwrap();
 
         let start = ark_std::time::Instant::now();
 

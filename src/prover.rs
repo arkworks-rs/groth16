@@ -1,5 +1,5 @@
 use crate::{r1cs_to_qap::R1CSToQAP, Groth16, Proof, ProvingKey, VerifyingKey};
-use ark_ec::{pairing::Pairing, AffineRepr, CurveGroup, Group, VariableBaseMSM};
+use ark_ec::{pairing::Pairing, AffineRepr, CurveGroup, VariableBaseMSM};
 use ark_ff::{Field, PrimeField, UniformRand, Zero};
 use ark_poly::GeneralEvaluationDomain;
 use ark_relations::r1cs::{
@@ -73,11 +73,7 @@ impl<E: Pairing, QAP: R1CSToQAP> Groth16<E, QAP> {
 
         let l_aux_acc = E::G1::msm_bigint(&pk.l_query, &aux_assignment);
 
-        let r_s_delta_g1 = pk
-            .delta_g1
-            .into_group()
-            .mul_bigint(&r.into_bigint())
-            .mul_bigint(&s.into_bigint());
+        let r_s_delta_g1 = pk.delta_g1 * (r * s);
 
         end_timer!(c_acc_time);
 
@@ -95,7 +91,7 @@ impl<E: Pairing, QAP: R1CSToQAP> Groth16<E, QAP> {
 
         let g_a = Self::calculate_coeff(r_g1, &pk.a_query, pk.vk.alpha_g1, &assignment);
 
-        let s_g_a = g_a.mul_bigint(&s.into_bigint());
+        let s_g_a = g_a * &s;
         end_timer!(a_acc_time);
 
         // Compute B in G1 if needed
@@ -115,7 +111,7 @@ impl<E: Pairing, QAP: R1CSToQAP> Groth16<E, QAP> {
         let b_g2_acc_time = start_timer!(|| "Compute B in G2");
         let s_g2 = pk.vk.delta_g2.mul(s);
         let g2_b = Self::calculate_coeff(s_g2, &pk.b_g2_query, pk.vk.beta_g2, &assignment);
-        let r_g1_b = g1_b.mul_bigint(&r.into_bigint());
+        let r_g1_b = g1_b * &r;
         drop(assignment);
 
         end_timer!(b_g2_acc_time);
