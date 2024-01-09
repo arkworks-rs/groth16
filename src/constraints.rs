@@ -2,16 +2,22 @@ use crate::{
     r1cs_to_qap::{LibsnarkReduction, R1CSToQAP},
     Groth16, PreparedVerifyingKey, Proof, VerifyingKey,
 };
-use ark_crypto_primitives::snark::constraints::{CircuitSpecificSetupSNARKGadget, SNARKGadget};
-use ark_crypto_primitives::snark::{BooleanInputVar, SNARK};
+use ark_crypto_primitives::{
+    snark::{
+        constraints::{CircuitSpecificSetupSNARKGadget, SNARKGadget},
+        BooleanInputVar, SNARK,
+    },
+    sponge::constraints::AbsorbGadget,
+};
 use ark_ec::{pairing::Pairing, AffineRepr};
 use ark_ff::Field;
-use ark_r1cs_std::groups::CurveVar;
 use ark_r1cs_std::{
     alloc::{AllocVar, AllocationMode},
     boolean::Boolean,
     convert::{ToBitsGadget, ToBytesGadget},
     eq::EqGadget,
+    fields::fp::FpVar,
+    groups::CurveVar,
     pairing::PairingVar,
     uint8::UInt8,
 };
@@ -69,7 +75,42 @@ impl<E: Pairing, P: PairingVar<E>> VerifyingKeyVar<E, P> {
     }
 }
 
-/// Preprocessed verification key parameters variable for the Groth16 construction
+impl<E, P> AbsorbGadget<E::BaseField> for VerifyingKeyVar<E, P>
+where
+    E: Pairing,
+    P: PairingVar<E>,
+    P::G1Var: AbsorbGadget<E::BaseField>,
+    P::G2Var: AbsorbGadget<E::BaseField>,
+{
+    fn to_sponge_bytes(&self) -> Result<Vec<UInt8<<E as Pairing>::BaseField>>, SynthesisError> {
+        let mut bytes = self.alpha_g1.to_sponge_bytes()?;
+        bytes.extend(self.beta_g2.to_sponge_bytes()?);
+        bytes.extend(self.gamma_g2.to_sponge_bytes()?);
+        bytes.extend(self.delta_g2.to_sponge_bytes()?);
+        self.gamma_abc_g1.iter().try_for_each(|g| {
+            bytes.extend(g.to_sponge_bytes()?);
+            Ok(())
+        })?;
+        Ok(bytes)
+    }
+
+    fn to_sponge_field_elements(
+        &self,
+    ) -> Result<Vec<FpVar<<E as Pairing>::BaseField>>, SynthesisError> {
+        let mut field_elements = self.alpha_g1.to_sponge_field_elements()?;
+        field_elements.extend(self.beta_g2.to_sponge_field_elements()?);
+        field_elements.extend(self.gamma_g2.to_sponge_field_elements()?);
+        field_elements.extend(self.delta_g2.to_sponge_field_elements()?);
+        self.gamma_abc_g1.iter().try_for_each(|g| {
+            field_elements.extend(g.to_sponge_field_elements()?);
+            Ok(())
+        })?;
+        Ok(field_elements)
+    }
+}
+
+/// Preprocessed verification key parameters variable for the Groth16
+/// construction
 #[derive(Derivative)]
 #[derivative(
     Clone(bound = "P::G1Var: Clone, P::GTVar: Clone, P::G1PreparedVar: Clone, \
@@ -411,22 +452,20 @@ where
 #[cfg(test)]
 mod test {
     use crate::{constraints::Groth16VerifierGadget, Groth16};
-    use ark_crypto_primitives::snark::constraints::SNARKGadget;
-    use ark_crypto_primitives::snark::SNARK;
+    use ark_crypto_primitives::snark::{constraints::SNARKGadget, SNARK};
     use ark_ec::pairing::Pairing;
     use ark_ff::{Field, UniformRand};
     use ark_mnt4_298::{constraints::PairingVar as MNT4PairingVar, Fr as MNT4Fr, MNT4_298 as MNT4};
     use ark_mnt6_298::Fr as MNT6Fr;
-    use ark_r1cs_std::boolean::Boolean;
-    use ark_r1cs_std::{alloc::AllocVar, eq::EqGadget};
+    use ark_r1cs_std::{alloc::AllocVar, boolean::Boolean, eq::EqGadget};
     use ark_relations::{
         lc, ns,
         r1cs::{ConstraintSynthesizer, ConstraintSystem, ConstraintSystemRef, SynthesisError},
     };
-    use ark_std::test_rng;
     use ark_std::{
         ops::MulAssign,
         rand::{RngCore, SeedableRng},
+        test_rng,
     };
 
     #[derive(Copy, Clone)]

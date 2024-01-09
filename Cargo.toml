@@ -21,7 +21,7 @@ ark-serialize = { version = "0.4.0", default-features = false, features = [ "der
 ark-poly = { version = "0.4.0", default-features = false }
 ark-std = { version = "0.4.0", default-features = false }
 ark-relations = { version = "0.4.0", default-features = false }
-ark-crypto-primitives = { version = "0.4.0", default-features = false, features = ["snark"] }
+ark-crypto-primitives = { version = "0.4.0", default-features = false, features = ["snark", "sponge"] }
 ark-r1cs-std = { version = "0.4.0", default-features = false, optional = true }
 
 tracing = { version = "0.1", default-features = false, features = [ "attributes" ], optional = true }
