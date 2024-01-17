@@ -1,4 +1,6 @@
+use ark_crypto_primitives::sponge::Absorb;
 use ark_ec::pairing::Pairing;
+use ark_ff::PrimeField;
 use ark_serialize::*;
 use ark_std::vec::Vec;
 
@@ -24,7 +26,6 @@ impl<E: Pairing> Default for Proof<E> {
 }
 
 ////////////////////////////////////////////////////////////////////////////////
-////////////////////////////////////////////////////////////////////////////////
 
 /// A verification key in the Groth16 SNARK.
 #[derive(Clone, Debug, PartialEq, CanonicalSerialize, CanonicalDeserialize)]
@@ -37,7 +38,8 @@ pub struct VerifyingKey<E: Pairing> {
     pub gamma_g2: E::G2Affine,
     /// The `delta * H`, where `H` is the generator of `E::G2`.
     pub delta_g2: E::G2Affine,
-    /// The `gamma^{-1} * (beta * a_i + alpha * b_i + c_i) * H`, where `H` is the generator of `E::G1`.
+    /// The `gamma^{-1} * (beta * a_i + alpha * b_i + c_i) * H`, where `H` is
+    /// the generator of `E::G1`.
     pub gamma_abc_g1: Vec<E::G1Affine>,
 }
 
@@ -50,6 +52,33 @@ impl<E: Pairing> Default for VerifyingKey<E> {
             delta_g2: E::G2Affine::default(),
             gamma_abc_g1: Vec::new(),
         }
+    }
+}
+
+impl<E> Absorb for VerifyingKey<E>
+where
+    E: Pairing,
+    E::G1Affine: Absorb,
+    E::G2Affine: Absorb,
+{
+    fn to_sponge_bytes(&self, dest: &mut Vec<u8>) {
+        self.alpha_g1.to_sponge_bytes(dest);
+        self.beta_g2.to_sponge_bytes(dest);
+        self.gamma_g2.to_sponge_bytes(dest);
+        self.delta_g2.to_sponge_bytes(dest);
+        self.gamma_abc_g1
+            .iter()
+            .for_each(|g| g.to_sponge_bytes(dest));
+    }
+
+    fn to_sponge_field_elements<F: PrimeField>(&self, dest: &mut Vec<F>) {
+        self.alpha_g1.to_sponge_field_elements(dest);
+        self.beta_g2.to_sponge_field_elements(dest);
+        self.gamma_g2.to_sponge_field_elements(dest);
+        self.delta_g2.to_sponge_field_elements(dest);
+        self.gamma_abc_g1
+            .iter()
+            .for_each(|g| g.to_sponge_field_elements(dest));
     }
 }
 
@@ -90,7 +119,6 @@ impl<E: Pairing> Default for PreparedVerifyingKey<E> {
     }
 }
 
-////////////////////////////////////////////////////////////////////////////////
 ////////////////////////////////////////////////////////////////////////////////
 
 /// The prover key for for the Groth16 zkSNARK.
