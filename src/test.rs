@@ -147,3 +147,13 @@ mod bw6_761 {
         test_rerandomize::<BW6_761>();
     }
 }
+
+mod bn_254 {
+    use super::test_prove_and_verify;
+    use ark_bn254::Bn254;
+
+    #[test]
+    fn prove_and_verify() {
+        test_prove_and_verify::<Bn254>(100);
+    }
+}
