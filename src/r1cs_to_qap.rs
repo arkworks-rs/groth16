@@ -212,14 +212,13 @@ impl R1CSToQAP for LibsnarkReduction {
 
         let t = vanishing_polynomial_prime(domain_size, domain.group_gen());
 
-        let mut q: Vec<F> = Vec::with_capacity(domain_size);
-        for i in 0..domain_size {
-            q.push(result[i].div(t[i]));
-        }
+        cfg_iter_mut!(result).zip(t).for_each(|(result_i, t_i)| {
+            *result_i *= &t_i;
+        });
 
-        domain.ifft_in_place(&mut q);
+        domain.ifft_in_place(&mut result);
 
-        Ok(q)
+        Ok(result)
     }
 
     fn h_query_scalars<F: PrimeField, D: EvaluationDomain<F>>(
@@ -250,8 +249,7 @@ fn vanishing_polynomial_prime<F: PrimeField>(n: usize, omega: F) -> Vec<F> {
     let mut t: Vec<F> = Vec::with_capacity(n);
     let mut power = F::one();
     for _ in 0..n {
-        let entry = F::from(n as u128).div(power);
-        t.push(entry);
+        t.push(power / F::from(n as u128));
         power *= omega;
     }
     t
