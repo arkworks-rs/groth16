@@ -190,18 +190,24 @@ impl R1CSToQAP for LibsnarkReduction {
         }
 
         // TODO: May be optimised because all even terms are the same and the odd terms are gamma
+
+        // Each costs two fft's... can we do with one?
         let a = extend_ft(&a, &domain, &domain_prime);
         let b = extend_ft(&b, &domain, &domain_prime);
-        let c = extend_ft(&c, &domain, &domain_prime);
 
         let mut ab = domain_prime.mul_polynomials_in_evaluation_domain(&a, &b);
+
+        domain_prime.ifft_in_place(&mut ab);
+        domain.ifft_in_place(&mut c);
+
+        c.resize(2*domain_size, zero);
+
+        formal_derivative_in_place(&mut ab);
+        formal_derivative_in_place(&mut c);
+
         cfg_iter_mut!(ab).zip(c).for_each(|(ab_i, c_i)| {
             *ab_i -= &c_i;
         });
-
-        domain_prime.ifft_in_place(&mut ab);
-
-        formal_derivative_in_place(&mut ab);
 
         // TODO: Only the even terms needs to be computed
         domain_prime.fft_in_place(&mut ab);
