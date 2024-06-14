@@ -158,16 +158,29 @@ impl R1CSToQAP for LibsnarkReduction {
         let domain_size = domain.size();
         let zero = F::zero();
 
+        let domain_prime = D::new(2*domain_size).ok_or(SynthesisError::PolynomialDegreeTooLarge)?;
+        assert_eq!(domain.group_gen(), domain_prime.group_gen() * domain_prime.group_gen());
+
         let mut a = vec![zero; domain_size];
         let mut b = vec![zero; domain_size];
+        let mut c = vec![zero; domain_size];
 
         cfg_iter_mut!(a[..num_constraints])
-            .zip(cfg_iter_mut!(b[..num_constraints]))
             .zip(cfg_iter!(&matrices.a))
-            .zip(cfg_iter!(&matrices.b))
-            .for_each(|(((a, b), at_i), bt_i)| {
+            .for_each(|(a, at_i)| {
                 *a = evaluate_constraint(&at_i, &full_assignment);
+            });
+
+        cfg_iter_mut!(b[..num_constraints])
+            .zip(cfg_iter!(&matrices.b))
+            .for_each(|(b, bt_i)| {
                 *b = evaluate_constraint(&bt_i, &full_assignment);
+            });
+
+        cfg_iter_mut!(c[..num_constraints])
+            .enumerate()
+            .for_each(|(i, c)| {
+                *c = evaluate_constraint(&matrices.c[i], &full_assignment);
             });
 
         {
@@ -176,40 +189,33 @@ impl R1CSToQAP for LibsnarkReduction {
             a[start..end].clone_from_slice(&full_assignment[..num_inputs]);
         }
 
-        domain.ifft_in_place(&mut a);
-        domain.ifft_in_place(&mut b);
+        // TODO: May be optimised because all even terms are the same and the odd terms are gamma
+        let a = extend_ft(&a, &domain, &domain_prime);
+        let b = extend_ft(&b, &domain, &domain_prime);
+        let c = extend_ft(&c, &domain, &domain_prime);
 
-        let coset_domain = domain.get_coset(F::GENERATOR).unwrap();
-
-        coset_domain.fft_in_place(&mut a);
-        coset_domain.fft_in_place(&mut b);
-
-        let mut ab = domain.mul_polynomials_in_evaluation_domain(&a, &b);
-        drop(a);
-        drop(b);
-
-        let mut c = vec![zero; domain_size];
-        cfg_iter_mut!(c[..num_constraints])
-            .enumerate()
-            .for_each(|(i, c)| {
-                *c = evaluate_constraint(&matrices.c[i], &full_assignment);
-            });
-
-        domain.ifft_in_place(&mut c);
-        coset_domain.fft_in_place(&mut c);
-
-        let vanishing_polynomial_over_coset = domain
-            .evaluate_vanishing_polynomial(F::GENERATOR)
-            .inverse()
-            .unwrap();
+        let mut ab = domain_prime.mul_polynomials_in_evaluation_domain(&a, &b);
         cfg_iter_mut!(ab).zip(c).for_each(|(ab_i, c_i)| {
             *ab_i -= &c_i;
-            *ab_i *= &vanishing_polynomial_over_coset;
         });
 
-        coset_domain.ifft_in_place(&mut ab);
+        domain_prime.ifft_in_place(&mut ab);
 
-        Ok(ab)
+        formal_derivative_in_place(&mut ab);
+
+        // TODO: Only the even terms needs to be computed
+        domain_prime.fft_in_place(&mut ab);
+
+        let t = vanishing_polynomial_prime(domain_size, domain.group_gen());
+
+        let mut q: Vec<F> = Vec::with_capacity(domain_size);
+        for i in 0..domain_size {
+            q.push(ab[2*i].div(t[i]));
+        }
+
+        domain.ifft_in_place(&mut q);
+
+        Ok(q)
     }
 
     fn h_query_scalars<F: PrimeField, D: EvaluationDomain<F>>(
@@ -224,3 +230,35 @@ impl R1CSToQAP for LibsnarkReduction {
         Ok(scalars)
     }
 }
+
+/// Extend a FT over `from` to an FT over `to` in `n` multiplications. This assumes that `2*from.size() = to.size()`
+/// and that the generator of `from` is the square of the generator of `to`.
+fn extend_ft<F: PrimeField, D: EvaluationDomain<F>>(a: &Vec<F>, from: &D, to: &D) -> Vec<F> {
+    assert_eq!(2 * from.size(), to.size());
+    let n = a.len();
+    assert_eq!(n, from.size());
+
+    to.fft(&from.ifft(&a))
+}
+
+fn formal_derivative_in_place<F: PrimeField>(a: &mut Vec<F>) {
+    let mut s = F::one();
+    for i in 0..a.len() - 1 {
+        a[i] = a[i+1].mul(s);
+        s += F::one();
+    }
+    a.last_mut().replace(&mut F::zero());
+}
+
+fn vanishing_polynomial_prime<F: PrimeField>(n: usize, omega: F) -> Vec<F> {
+    // TODO: Optimise or pre-compute
+    let mut t: Vec<F> = Vec::with_capacity(n);
+    let mut power = F::one();
+    for _ in 0..n {
+        let entry = F::from(n as u128).div(power);
+        t.push(entry);
+        power *= omega;
+    }
+    t
+}
+
