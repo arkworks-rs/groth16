@@ -235,16 +235,6 @@ impl R1CSToQAP for LibsnarkReduction {
     }
 }
 
-/// Extend a FT over `from` to an FT over `to` in `n` multiplications. This assumes that `2*from.size() = to.size()`
-/// and that the generator of `from` is the square of the generator of `to`.
-fn extend_ft<F: PrimeField, D: EvaluationDomain<F>>(a: &Vec<F>, from: &D, to: &D) -> Vec<F> {
-    assert_eq!(2 * from.size(), to.size());
-    let n = a.len();
-    assert_eq!(n, from.size());
-
-    to.fft(&from.ifft(&a))
-}
-
 fn formal_derivative_in_place<F: PrimeField>(a: &mut Vec<F>) {
     let n = a.len();
     let mut s = F::one();
