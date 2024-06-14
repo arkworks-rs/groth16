@@ -185,11 +185,7 @@ impl R1CSToQAP for LibsnarkReduction {
             let end = start + num_inputs;
             a[start..end].clone_from_slice(&full_assignment[..num_inputs]);
         }
-
-        // TODO: May be optimised because all even terms are the same and the odd terms are gamma
-
-        // Each costs two fft's... can we do with one?
-
+        
         let mut a_prime = domain.ifft(&a);
         let mut b_prime = domain.ifft(&b);
         let mut c_prime = domain.ifft(&c);
