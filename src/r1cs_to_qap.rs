@@ -158,9 +158,6 @@ impl R1CSToQAP for LibsnarkReduction {
         let domain_size = domain.size();
         let zero = F::zero();
 
-        let domain_prime = D::new(2*domain_size).ok_or(SynthesisError::PolynomialDegreeTooLarge)?;
-        assert_eq!(domain.group_gen(), domain_prime.group_gen() * domain_prime.group_gen());
-
         let mut a = vec![zero; domain_size];
         let mut b = vec![zero; domain_size];
         let mut c = vec![zero; domain_size];
@@ -192,31 +189,32 @@ impl R1CSToQAP for LibsnarkReduction {
         // TODO: May be optimised because all even terms are the same and the odd terms are gamma
 
         // Each costs two fft's... can we do with one?
-        let a = extend_ft(&a, &domain, &domain_prime);
-        let b = extend_ft(&b, &domain, &domain_prime);
 
-        let mut ab = domain_prime.mul_polynomials_in_evaluation_domain(&a, &b);
+        let mut a_prime = domain.ifft(&a);
+        let mut b_prime = domain.ifft(&b);
+        let mut c_prime = domain.ifft(&c);
 
-        domain_prime.ifft_in_place(&mut ab);
-        domain.ifft_in_place(&mut c);
+        formal_derivative_in_place(&mut a_prime);
+        formal_derivative_in_place(&mut b_prime);
+        formal_derivative_in_place(&mut c_prime);
 
-        c.resize(2*domain_size, zero);
+        domain.fft_in_place(&mut a_prime);
+        domain.fft_in_place(&mut b_prime);
+        domain.fft_in_place(&mut c_prime);
 
-        formal_derivative_in_place(&mut ab);
-        formal_derivative_in_place(&mut c);
-
-        cfg_iter_mut!(ab).zip(c).for_each(|(ab_i, c_i)| {
-            *ab_i -= &c_i;
+        let mut result = domain.mul_polynomials_in_evaluation_domain(&a, &b_prime);
+        cfg_iter_mut!(result).zip(domain.mul_polynomials_in_evaluation_domain(&a_prime, &b)).for_each(|(ab_i, a_prime_b_i)| {
+            *ab_i += &a_prime_b_i;
         });
-
-        // TODO: Only the even terms needs to be computed
-        domain_prime.fft_in_place(&mut ab);
+        cfg_iter_mut!(result).zip(c_prime).for_each(|(ab_i, c_prime_i)| {
+            *ab_i -= &c_prime_i;
+        });
 
         let t = vanishing_polynomial_prime(domain_size, domain.group_gen());
 
         let mut q: Vec<F> = Vec::with_capacity(domain_size);
         for i in 0..domain_size {
-            q.push(ab[2*i].div(t[i]));
+            q.push(result[i].div(t[i]));
         }
 
         domain.ifft_in_place(&mut q);
@@ -248,12 +246,13 @@ fn extend_ft<F: PrimeField, D: EvaluationDomain<F>>(a: &Vec<F>, from: &D, to: &D
 }
 
 fn formal_derivative_in_place<F: PrimeField>(a: &mut Vec<F>) {
+    let n = a.len();
     let mut s = F::one();
-    for i in 0..a.len() - 1 {
+    for i in 0..(n - 1) {
         a[i] = a[i+1].mul(s);
         s += F::one();
     }
-    a.last_mut().replace(&mut F::zero());
+    a[n - 1] = F::zero();
 }
 
 fn vanishing_polynomial_prime<F: PrimeField>(n: usize, omega: F) -> Vec<F> {
