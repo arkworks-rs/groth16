@@ -175,7 +175,7 @@ impl R1CSToQAP for LibsnarkReduction {
             let end = start + num_inputs;
             a[start..end].clone_from_slice(&full_assignment[..num_inputs]);
         }
-        
+
         let mut c = vec![zero; domain_size];
         cfg_iter_mut!(c[..num_constraints])
             .enumerate()
@@ -200,12 +200,13 @@ impl R1CSToQAP for LibsnarkReduction {
 
         cfg_iter_mut!(result).zip(domain.mul_polynomials_in_evaluation_domain(&a_prime, &b))
             .zip(c_prime)
-            .zip(t)
-            .for_each(|(((a_b_prime_i, a_prime_b_i), c_prime_i), t_i)| {
+            .for_each(|((a_b_prime_i, a_prime_b_i), c_prime_i)| {
                 *a_b_prime_i += &a_prime_b_i;
                 *a_b_prime_i -= &c_prime_i;
-                *a_b_prime_i *= &t_i;
         });
+
+        result = domain.mul_polynomials_in_evaluation_domain(&result, &t);
+
         domain.ifft_in_place(&mut result);
         Ok(result)
     }
@@ -238,9 +239,13 @@ fn vanishing_polynomial_prime<F: PrimeField>(n: usize, omega: F) -> Vec<F> {
     let mut t: Vec<F> = Vec::with_capacity(n);
     let mut power = F::one();
     for _ in 0..n {
-        t.push(power / F::from(n as u128));
+        t.push(power);
         power *= omega;
     }
+
+    let n_inverse = F::from(n as u128).inverse().unwrap();
+    cfg_iter_mut!(t).for_each(|t_i| *t_i = *t_i * n_inverse);
+
     t
 }
 
