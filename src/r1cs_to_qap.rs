@@ -187,9 +187,11 @@ impl R1CSToQAP for LibsnarkReduction {
         let mut b_prime = domain.ifft(&b);
         let mut c_prime = domain.ifft(&c);
 
-        formal_derivative_in_place(&mut a_prime);
-        formal_derivative_in_place(&mut b_prime);
-        formal_derivative_in_place(&mut c_prime);
+        let mut v = vec![&mut a_prime, &mut b_prime, &mut c_prime];
+
+        cfg_iter_mut!(v).for_each(|v| {
+            formal_derivative_in_place(v);
+        });
 
         domain.fft_in_place(&mut a_prime);
         domain.fft_in_place(&mut b_prime);
@@ -226,26 +228,20 @@ impl R1CSToQAP for LibsnarkReduction {
 
 fn formal_derivative_in_place<F: PrimeField>(a: &mut Vec<F>) {
     let n = a.len();
-    let mut s = F::one();
-    for i in 0..(n - 1) {
-        a[i] = a[i+1].mul(s);
-        s += F::one();
-    }
+    a.rotate_left(1);
     a[n - 1] = F::zero();
+    cfg_iter_mut!(a[..(n-1)]).enumerate().for_each(|(i, a_i)| *a_i *= F::from((i + 1) as u128));
 }
 
 fn vanishing_polynomial_prime<F: PrimeField>(n: usize, omega: F) -> Vec<F> {
-    // TODO: Optimise or pre-compute
-    let mut t: Vec<F> = Vec::with_capacity(n);
-    let mut power = F::one();
-    for _ in 0..n {
-        t.push(power);
-        power *= omega;
-    }
-
+    // In the baseline implementation, t is not precomputed, so we don't do it here either.
+    let mut t = (2..n).fold(vec![F::one(), omega], |mut acc, _| {
+        let last = *acc.last().unwrap();
+        acc.push(last * omega);
+        acc
+    });
     let n_inverse = F::from(n as u128).inverse().unwrap();
-    cfg_iter_mut!(t).for_each(|t_i| *t_i = *t_i * n_inverse);
-
+    cfg_iter_mut!(t).for_each(|t_i| *t_i *= n_inverse);
     t
 }
 
