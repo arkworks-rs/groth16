@@ -185,7 +185,7 @@ impl R1CSToQAP for LibsnarkReduction {
             let end = start + num_inputs;
             a[start..end].clone_from_slice(&full_assignment[..num_inputs]);
         }
-        
+
         let mut a_prime = domain.ifft(&a);
         let mut b_prime = domain.ifft(&b);
         let mut c_prime = domain.ifft(&c);
@@ -199,21 +199,17 @@ impl R1CSToQAP for LibsnarkReduction {
         domain.fft_in_place(&mut c_prime);
 
         let mut result = domain.mul_polynomials_in_evaluation_domain(&a, &b_prime);
-        cfg_iter_mut!(result).zip(domain.mul_polynomials_in_evaluation_domain(&a_prime, &b)).for_each(|(ab_i, a_prime_b_i)| {
-            *ab_i += &a_prime_b_i;
-        });
-        cfg_iter_mut!(result).zip(c_prime).for_each(|(ab_i, c_prime_i)| {
-            *ab_i -= &c_prime_i;
-        });
-
         let t = vanishing_polynomial_prime(domain_size, domain.group_gen());
 
-        cfg_iter_mut!(result).zip(t).for_each(|(result_i, t_i)| {
-            *result_i *= &t_i;
+        cfg_iter_mut!(result).zip(domain.mul_polynomials_in_evaluation_domain(&a_prime, &b))
+            .zip(c_prime)
+            .zip(t)
+            .for_each(|(((a_b_prime_i, a_prime_b_i), c_prime_i), t_i)| {
+                *a_b_prime_i += &a_prime_b_i;
+                *a_b_prime_i -= &c_prime_i;
+                *a_b_prime_i *= &t_i;
         });
-
         domain.ifft_in_place(&mut result);
-
         Ok(result)
     }
 
