@@ -170,18 +170,18 @@ impl R1CSToQAP for LibsnarkReduction {
                 *b = evaluate_constraint(&bt_i, &full_assignment);
             });
 
+        {
+            let start = num_constraints;
+            let end = start + num_inputs;
+            a[start..end].clone_from_slice(&full_assignment[..num_inputs]);
+        }
+        
         let mut c = vec![zero; domain_size];
         cfg_iter_mut!(c[..num_constraints])
             .enumerate()
             .for_each(|(i, c)| {
                 *c = evaluate_constraint(&matrices.c[i], &full_assignment);
             });
-
-        {
-            let start = num_constraints;
-            let end = start + num_inputs;
-            a[start..end].clone_from_slice(&full_assignment[..num_inputs]);
-        }
 
         let mut a_prime = domain.ifft(&a);
         let mut b_prime = domain.ifft(&b);
