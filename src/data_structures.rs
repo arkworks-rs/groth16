@@ -32,7 +32,7 @@ impl<E: Pairing> Default for Proof<E> {
 pub struct VerifyingKey<E: Pairing> {
     /// The `alpha * G`, where `G` is the generator of `E::G1`.
     pub alpha_g1: E::G1Affine,
-    /// The `alpha * H`, where `H` is the generator of `E::G2`.
+    /// The `beta * H`, where `H` is the generator of `E::G2`.
     pub beta_g2: E::G2Affine,
     /// The `gamma * H`, where `H` is the generator of `E::G2`.
     pub gamma_g2: E::G2Affine,
