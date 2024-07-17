@@ -63,7 +63,7 @@ impl<E: Pairing, QAP: R1CSToQAP> Groth16<E, QAP> {
         let h_assignment = cfg_into_iter!(h)
             .map(|s| s.into_bigint())
             .collect::<Vec<_>>();
-        let h_acc = E::G1::msm_bigint(&pk.h_query, &h_assignment[..h_assignment.len() - 1]);
+        let h_acc = E::G1::msm_bigint(&pk.h_query, &h_assignment);
         drop(h_assignment);
 
         // Compute C
