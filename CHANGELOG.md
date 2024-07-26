@@ -14,6 +14,7 @@
 ### Improvements
 
 - [\#36](https://github.com/arkworks-rs/groth16/pull/36) Documentation updates and minor optimization in setup.
+- [\#63](https://github.com/arkworks-rs/groth16/pull/63) Removed an unneeded `ark-relations/std` dependency.
 
 ### Bug fixes
 
