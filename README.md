@@ -23,6 +23,7 @@ rustup install stable
 After that, use `cargo`, the standard Rust build tool, to build the library:
 ```bash
 git clone https://github.com/arkworks-rs/groth16.git
+cd groth16
 cargo build --release
 ```
 
