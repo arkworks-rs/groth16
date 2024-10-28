@@ -39,6 +39,7 @@ ark-mnt6-298 = { version = "0.5.0-alpha", default-features = false, features = [
 ark-mnt4-753 = { version = "0.5.0-alpha", default-features = false, features = ["r1cs", "curve"] }
 ark-mnt6-753 = { version = "0.5.0-alpha", default-features = false, features = ["r1cs"] }
 ark-r1cs-std = { version = "0.5.0-alpha", default-features = false }
+ark-bn254 = { version = "0.5.0-alpha", default-features = false, features = ["curve"] }
 
 [features]
 default = ["parallel"]
@@ -91,6 +92,8 @@ ark-mnt4-753 = { git = "https://github.com/arkworks-rs/algebra/" }
 ark-mnt6-753 = { git = "https://github.com/arkworks-rs/algebra/" }
 ark-bls12-377 = { git = "https://github.com/arkworks-rs/algebra/" }
 ark-bw6-761 = { git = "https://github.com/arkworks-rs/algebra/" }
+ark-bn254 = { git = "https://github.com/arkworks-rs/algebra/" }
+ark-std = { git = "https://github.com/arkworks-rs/std/" }
 
 ark-r1cs-std = { git = "https://github.com/arkworks-rs/r1cs-std/" }
 ark-crypto-primitives = { git = "https://github.com/arkworks-rs/crypto-primitives/" }
