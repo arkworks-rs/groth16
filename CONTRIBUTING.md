@@ -2,7 +2,7 @@
 
 Thank you for considering making contributions to `arkworks-rs/groth16`!
 
-Contributing to this repo can be done in several forms, such as participating in discussion or proposing code changes. 
+Contributing to this repo can be done in several forms, such as participating in discussions or proposing code changes. 
 To ensure a smooth workflow for all contributors, the following general procedure for contributing has been established:
 
 1) Either open or find an issue you'd like to help with
@@ -30,7 +30,7 @@ All other branches should be assumed to be miscellaneous feature development bra
 All downstream users of the library should be using tagged versions of the library pulled from cargo.
 
 ## How to work on a fork
-Please skip this section if you're familiar with contributing to opensource github projects.
+Please skip this section if you're familiar with contributing to open-source GitHub projects.
 
 First fork the repo from the github UI, and clone it locally.
 Then in the repo, you want to add the repo you forked from as a new remote. You do this as:
@@ -50,11 +50,11 @@ and then work as normal on that branch, and pull request to upstream master when
 ## Updating documentation
 
 All PRs should aim to leave the code more documented than it started with.
-Please don't assume that its easy to infer what the code is doing, 
+Please don't assume that it's easy to infer what the code is doing, 
 as that is usually not the case for these complex protocols. 
 (Even when you understand the paper!)
 
-Its often very useful to describe what is the high level view of what a code block is doing,
+It's often very useful to describe what is the high-level view of what a code block is doing,
 and either refer to the relevant section of a paper or include a short proof/argument for why it makes sense before the actual logic.
 
 ## Performance improvements
