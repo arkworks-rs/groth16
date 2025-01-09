@@ -1,5 +1,5 @@
 use crate::{r1cs_to_qap::R1CSToQAP, Groth16, ProvingKey, Vec, VerifyingKey};
-use ark_ec::{pairing::Pairing, scalar_mul::BatchMulPreprocessing, CurveGroup};
+use ark_ec::{scalar_mul::BatchMulPreprocessing, pairing::Pairing, CurveGroup};
 use ark_ff::{Field, UniformRand, Zero};
 use ark_poly::{EvaluationDomain, GeneralEvaluationDomain};
 use ark_relations::r1cs::{
