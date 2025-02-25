@@ -1,7 +1,7 @@
 <h1 align="center">ark-groth16</h1>
 
 <p align="center">
-    <img src="https://github.com/arkworks-rs/groth16/workflows/CI/badge.svg?branch=master">
+    <a href="https://github.com/arkworks-rs/groth16/actions/workflows/ci.yml"><img src="https://github.com/arkworks-rs/groth16/workflows/CI/badge.svg?branch=master">
     <a href="https://github.com/arkworks-rs/groth16/blob/master/LICENSE-APACHE"><img src="https://img.shields.io/badge/license-APACHE-blue.svg"></a>
     <a href="https://github.com/arkworks-rs/groth16/blob/master/LICENSE-MIT"><img src="https://img.shields.io/badge/license-MIT-blue.svg"></a>
     <a href="https://deps.rs/repo/github/arkworks-rs/groth16"><img src="https://deps.rs/repo/github/arkworks-rs/groth16/status.svg"></a>
