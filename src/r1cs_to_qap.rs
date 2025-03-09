@@ -13,35 +13,53 @@ use rayon::prelude::*;
 
 #[inline]
 /// Computes the inner product of `terms` with `assignment`.
+/// 
+/// This implementation is optimized for both parallel and sequential execution:
+/// - In parallel mode, it uses Rayon's parallel iterator for efficient multi-threading
+/// - In sequential mode, it processes elements in chunks for better vectorization
+/// 
+/// # Performance characteristics
+/// - Time complexity: O(n) where n is the number of terms
+/// - Space complexity: O(1) in sequential mode, O(log n) in parallel mode due to work splitting
+///
+/// # Arguments
+/// * `terms` - Slice of tuples containing coefficients and their indices
+/// * `assignment` - Slice of values to be multiplied with coefficients
+///
+/// # Type Parameters
+/// * `LHS` - Type of the coefficient, must implement `One + Send + Sync + PartialEq`
+/// * `RHS` - Type of the assignment values, must implement multiplication with `LHS`
+/// * `R` - Result type, must implement zero initialization and addition
 pub fn evaluate_constraint<'a, LHS, RHS, R>(terms: &'a [(LHS, usize)], assignment: &'a [RHS]) -> R
 where
     LHS: One + Send + Sync + PartialEq,
     RHS: Send + Sync + core::ops::Mul<&'a LHS, Output = RHS> + Copy,
     R: Zero + Send + Sync + AddAssign<RHS> + core::iter::Sum,
 {
-    // Need to wrap in a closure when using Rayon
     #[cfg(feature = "parallel")]
-    let zero = || R::zero();
+    {
+        terms.par_iter()
+            .map(|(coeff, index)| {
+                let val = assignment[*index];
+                if coeff.is_one() { val } else { val.mul(coeff) }
+            })
+            .sum()
+    }
+    
     #[cfg(not(feature = "parallel"))]
-    let zero = R::zero();
-
-    let res = cfg_iter!(terms).fold(zero, |mut sum, (coeff, index)| {
-        let val = &assignment[*index];
-
-        if coeff.is_one() {
-            sum += *val;
-        } else {
-            sum += val.mul(coeff);
+    {
+        let mut sum = R::zero();
+        // Process elements in chunks for better CPU vectorization
+        for chunk in terms.chunks(4) {
+            let mut chunk_sum = R::zero();
+            for (coeff, index) in chunk {
+                let val = assignment[*index];
+                chunk_sum += if coeff.is_one() { val } else { val.mul(coeff) };
+            }
+            sum += chunk_sum;
         }
-
         sum
-    });
-
-    // Need to explicitly call `.sum()` when using Rayon
-    #[cfg(feature = "parallel")]
-    return res.sum();
-    #[cfg(not(feature = "parallel"))]
-    return res;
+    }
 }
 
 /// Computes instance and witness reductions from R1CS to
