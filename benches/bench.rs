@@ -4,8 +4,8 @@
 
 use ark_bls12_381::{Bls12_381, Fr as BlsFr};
 use ark_crypto_primitives::snark::SNARK;
-use ark_ff::{PrimeField, UniformRand};
-use ark_groth16::Groth16;
+use ark_ff::{PrimeField, UniformRand, One, Zero};
+use ark_groth16::{Groth16, r1cs_to_qap::evaluate_constraint};
 use ark_mnt4_298::{Fr as MNT4Fr, MNT4_298};
 use ark_mnt4_753::{Fr as MNT4BigFr, MNT4_753};
 use ark_mnt6_298::{Fr as MNT6Fr, MNT6_298};
@@ -14,6 +14,7 @@ use ark_relations::{
     lc,
     r1cs::{ConstraintSynthesizer, ConstraintSystemRef, SynthesisError},
 };
+use ark_std::rand::SeedableRng;
 
 const NUM_PROVE_REPETITIONS: usize = 1;
 const NUM_VERIFY_REPETITIONS: usize = 50;
@@ -124,8 +125,60 @@ macro_rules! groth16_verify_bench {
     };
 }
 
+fn create_evaluate_constraint_test_data(size: usize) -> (Vec<(BlsFr, usize)>, Vec<BlsFr>) {
+    let mut rng = ark_std::rand::rngs::StdRng::seed_from_u64(0u64);
+    let terms: Vec<(BlsFr, usize)> = (0..size)
+        .map(|i| {
+            if i % 5 == 0 {
+                (BlsFr::one(), i)
+            } else {
+                (BlsFr::rand(&mut rng), i)
+            }
+        })
+        .collect();
+    let assignment: Vec<BlsFr> = (0..size).map(|_| BlsFr::rand(&mut rng)).collect();
+    (terms, assignment)
+}
+
+fn bench_evaluate_constraint() {
+    println!("\nBenchmarking evaluate_constraint:");
+    
+    for size in [100, 1000, 10000, 100000].iter() {
+        let (terms, assignment) = create_evaluate_constraint_test_data(*size);
+        
+        // Benchmark sequential version
+        let start = ark_std::time::Instant::now();
+        for _ in 0..100 {
+            let _ = evaluate_constraint::<BlsFr, BlsFr, BlsFr>(&terms, &assignment);
+        }
+        let seq_time = start.elapsed();
+        
+        println!(
+            "Sequential - Size {}: {} ns/iteration",
+            size,
+            seq_time.as_nanos() / 100
+        );
+
+        // Benchmark parallel version (if enabled)
+        #[cfg(feature = "parallel")]
+        {
+            let start = ark_std::time::Instant::now();
+            for _ in 0..100 {
+                let _ = evaluate_constraint::<BlsFr, BlsFr, BlsFr>(&terms, &assignment);
+            }
+            let par_time = start.elapsed();
+            
+            println!(
+                "Parallel   - Size {}: {} ns/iteration ({}x speedup)",
+                size,
+                par_time.as_nanos() / 100,
+                seq_time.as_nanos() as f64 / par_time.as_nanos() as f64
+            );
+        }
+    }
+}
+
 fn bench_prove() {
-    use ark_std::rand::SeedableRng;
     groth16_prove_bench!(bls, BlsFr, Bls12_381);
     groth16_prove_bench!(mnt4, MNT4Fr, MNT4_298);
     groth16_prove_bench!(mnt6, MNT6Fr, MNT6_298);
@@ -134,7 +187,6 @@ fn bench_prove() {
 }
 
 fn bench_verify() {
-    use ark_std::rand::SeedableRng;
     groth16_verify_bench!(bls, BlsFr, Bls12_381);
     groth16_verify_bench!(mnt4, MNT4Fr, MNT4_298);
     groth16_verify_bench!(mnt6, MNT6Fr, MNT6_298);
@@ -145,4 +197,5 @@ fn bench_verify() {
 fn main() {
     bench_prove();
     bench_verify();
+    bench_evaluate_constraint();
 }
