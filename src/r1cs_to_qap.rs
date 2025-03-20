@@ -1,4 +1,4 @@
-use ark_ff::{One, PrimeField, Zero};
+use ark_ff::PrimeField;
 use ark_poly::EvaluationDomain;
 use ark_std::{cfg_iter, cfg_iter_mut, vec};
 
@@ -6,42 +6,64 @@ use crate::Vec;
 use ark_relations::r1cs::{
     ConstraintMatrices, ConstraintSystemRef, Result as R1CSResult, SynthesisError,
 };
-use core::ops::{AddAssign, Deref};
+use core::ops::Deref;
 
 #[cfg(feature = "parallel")]
 use rayon::prelude::*;
 
 #[inline]
 /// Computes the inner product of `terms` with `assignment`.
-pub fn evaluate_constraint<'a, LHS, RHS, R>(terms: &'a [(LHS, usize)], assignment: &'a [RHS]) -> R
-where
-    LHS: One + Send + Sync + PartialEq,
-    RHS: Send + Sync + core::ops::Mul<&'a LHS, Output = RHS> + Copy,
-    R: Zero + Send + Sync + AddAssign<RHS> + core::iter::Sum,
-{
-    // Need to wrap in a closure when using Rayon
+///
+/// This implementation is optimized for both parallel and sequential execution:
+/// - In parallel mode, it uses Rayon's parallel iterator for efficient multi-threading
+/// - In sequential mode, it processes elements in chunks for better vectorization
+///
+/// # Performance characteristics
+/// - Time complexity: O(n) where n is the number of terms
+/// - Space complexity: O(1) in sequential mode, O(log n) in parallel mode due to work splitting
+///
+/// # Arguments
+/// * `terms` - Slice of tuples containing coefficients and their indices
+/// * `assignment` - Slice of values to be multiplied with coefficients
+pub fn evaluate_constraint<F: PrimeField>(terms: &[(F, usize)], assignment: &[F]) -> F {
     #[cfg(feature = "parallel")]
-    let zero = || R::zero();
+    if terms.len() < 100 {
+        serial_evaluate_constraint(terms, assignment)
+    } else {
+        terms
+            .par_iter()
+            .map(|(coeff, index)| {
+                let val = assignment[*index];
+                if coeff.is_one() {
+                    val
+                } else {
+                    val * coeff
+                }
+            })
+            .sum()
+    }
     #[cfg(not(feature = "parallel"))]
-    let zero = R::zero();
+    serial_evaluate_constraint(terms, assignment)
+}
 
-    let res = cfg_iter!(terms).fold(zero, |mut sum, (coeff, index)| {
-        let val = &assignment[*index];
-
-        if coeff.is_one() {
-            sum += *val;
-        } else {
-            sum += val.mul(coeff);
-        }
-
-        sum
-    });
-
-    // Need to explicitly call `.sum()` when using Rayon
-    #[cfg(feature = "parallel")]
-    return res.sum();
-    #[cfg(not(feature = "parallel"))]
-    return res;
+fn serial_evaluate_constraint<F: PrimeField>(terms: &[(F, usize)], assignment: &[F]) -> F {
+    let mut sum = F::zero();
+    // Process elements in chunks for better CPU vectorization
+    for chunk in terms.chunks(4) {
+        let chunk_sum = chunk
+            .iter()
+            .map(|(coeff, index)| {
+                let val = assignment[*index];
+                if coeff.is_one() {
+                    val
+                } else {
+                    val * coeff
+                }
+            })
+            .sum::<F>();
+        sum += chunk_sum;
+    }
+    sum
 }
 
 /// Computes instance and witness reductions from R1CS to
