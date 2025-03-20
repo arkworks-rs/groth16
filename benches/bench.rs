@@ -4,12 +4,10 @@
 
 use ark_bls12_381::{Bls12_381, Fr as BlsFr};
 use ark_crypto_primitives::snark::SNARK;
-use ark_ff::{One, PrimeField, UniformRand};
+use ark_ff::{PrimeField, UniformRand};
 use ark_groth16::{r1cs_to_qap::evaluate_constraint, Groth16};
 use ark_mnt4_298::{Fr as MNT4Fr, MNT4_298};
-use ark_mnt4_753::{Fr as MNT4BigFr, MNT4_753};
 use ark_mnt6_298::{Fr as MNT6Fr, MNT6_298};
-use ark_mnt6_753::{Fr as MNT6BigFr, MNT6_753};
 use ark_relations::{
     lc,
     r1cs::{ConstraintSynthesizer, ConstraintSystemRef, SynthesisError},
@@ -153,18 +151,14 @@ fn bench_evaluate_constraint() {
 
 fn bench_prove() {
     groth16_prove_bench!(bls, BlsFr, Bls12_381);
-    // groth16_prove_bench!(mnt4, MNT4Fr, MNT4_298);
-    // groth16_prove_bench!(mnt6, MNT6Fr, MNT6_298);
-    // groth16_prove_bench!(mnt4big, MNT4BigFr, MNT4_753);
-    // groth16_prove_bench!(mnt6big, MNT6BigFr, MNT6_753);
+    groth16_prove_bench!(mnt4, MNT4Fr, MNT4_298);
+    groth16_prove_bench!(mnt6, MNT6Fr, MNT6_298);
 }
 
 fn bench_verify() {
     groth16_verify_bench!(bls, BlsFr, Bls12_381);
-    // groth16_verify_bench!(mnt4, MNT4Fr, MNT4_298);
-    // groth16_verify_bench!(mnt6, MNT6Fr, MNT6_298);
-    // groth16_verify_bench!(mnt4big, MNT4BigFr, MNT4_753);
-    // groth16_verify_bench!(mnt6big, MNT6BigFr, MNT6_753);
+    groth16_verify_bench!(mnt4, MNT4Fr, MNT4_298);
+    groth16_verify_bench!(mnt6, MNT6Fr, MNT6_298);
 }
 
 fn main() {
