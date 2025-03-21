@@ -177,20 +177,15 @@ fn test_mimc_groth16() {
     let mut total_proving = Duration::new(0, 0);
     let mut total_verifying = Duration::new(0, 0);
 
-    // Just a place to put the proof data, so we can
-    // benchmark deserialization.
-    // let mut proof_vec = vec![];
-
     for _ in 0..SAMPLES {
         // Generate a random preimage and compute the image
         let xl = rng.gen();
         let xr = rng.gen();
         let image = mimc(xl, xr, &constants);
 
-        // proof_vec.truncate(0);
-
-        let start = Instant::now();
         {
+            let start = Instant::now();
+
             // Create an instance of our circuit (with the
             // witness)
             let c = MiMCDemo {
@@ -201,20 +196,18 @@ fn test_mimc_groth16() {
 
             // Create a groth16 proof with our parameters.
             let proof = Groth16::<Bls12_377>::prove(&pk, c, &mut rng).unwrap();
+
+            total_proving += start.elapsed();
+
+            let start = Instant::now();
+
+            // Check the proof
             assert!(
                 Groth16::<Bls12_377>::verify_with_processed_vk(&pvk, &[image], &proof).unwrap()
             );
 
-            // proof.write(&mut proof_vec).unwrap();
+            total_verifying += start.elapsed();
         }
-
-        total_proving += start.elapsed();
-
-        let start = Instant::now();
-        // let proof = Proof::read(&proof_vec[..]).unwrap();
-        // Check the proof
-
-        total_verifying += start.elapsed();
     }
     let proving_avg = total_proving / SAMPLES;
     let proving_avg =
