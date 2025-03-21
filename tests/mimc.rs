@@ -186,6 +186,9 @@ fn test_mimc_groth16() {
         let xl = rng.gen();
         let xr = rng.gen();
         let image = mimc(xl, xr, &constants);
+        
+        // Also generate a random incorrect image for negative testing
+        let incorrect_image: Fr = rng.gen();
 
         // proof_vec.truncate(0);
 
@@ -201,8 +204,17 @@ fn test_mimc_groth16() {
 
             // Create a groth16 proof with our parameters.
             let proof = Groth16::<Bls12_377>::prove(&pk, c, &mut rng).unwrap();
+            
+            // Verify that the proof is valid for the correct image
             assert!(
-                Groth16::<Bls12_377>::verify_with_processed_vk(&pvk, &[image], &proof).unwrap()
+                Groth16::<Bls12_377>::verify_with_processed_vk(&pvk, &[image], &proof).unwrap(),
+                "Valid proof was incorrectly rejected"
+            );
+            
+            // Verify that the proof is invalid for an incorrect image
+            assert!(
+                !Groth16::<Bls12_377>::verify_with_processed_vk(&pvk, &[incorrect_image], &proof).unwrap(),
+                "Invalid proof was incorrectly accepted"
             );
 
             // proof.write(&mut proof_vec).unwrap();
@@ -226,4 +238,32 @@ fn test_mimc_groth16() {
 
     println!("Average proving time: {:?} seconds", proving_avg);
     println!("Average verifying time: {:?} seconds", verifying_avg);
+    
+    // Test that tampering with the public input makes the proof invalid
+    {
+        // Generate a random preimage and compute the image
+        let xl: Fr = rng.gen();
+        let xr: Fr = rng.gen();
+        let image = mimc(xl, xr, &constants);
+        
+        // Create an instance of our circuit with the witness
+        let c = MiMCDemo {
+            xl: Some(xl),
+            xr: Some(xr),
+            constants: &constants,
+        };
+
+        // Create a groth16 proof with our parameters
+        let proof = Groth16::<Bls12_377>::prove(&pk, c, &mut rng).unwrap();
+        
+        // Tamper with the image (add 1)
+        let mut tampered_image = image;
+        tampered_image.add_assign(&Fr::from(1u32));
+        
+        // The proof should not verify with the tampered image
+        assert!(
+            !Groth16::<Bls12_377>::verify_with_processed_vk(&pvk, &[tampered_image], &proof).unwrap(),
+            "Proof should not verify with tampered public input"
+        );
+    }
 }
