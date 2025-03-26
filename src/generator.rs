@@ -44,6 +44,7 @@ impl<E: Pairing, QAP: R1CSToQAP> Groth16<E, QAP> {
     }
 
     /// Create parameters for a circuit, given some toxic waste, R1CS to QAP calculator and group generators
+    #[allow(clippy::too_many_arguments)]
     pub fn generate_parameters_with_qap<C>(
         circuit: C,
         alpha: E::ScalarField,
