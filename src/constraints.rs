@@ -40,9 +40,9 @@ pub struct ProofVar<E: Pairing, P: PairingVar<E>> {
 
 /// A variable representing the Groth16 verifying key in the constraint system.
 #[derive(Derivative)]
-#[derivative(Clone(
-    bound = "P::G1Var: Clone, P::GTVar: Clone, P::G1PreparedVar: Clone, P::G2PreparedVar: Clone"
-))]
+#[derivative(
+    Clone(bound = "P::G1Var: Clone, P::GTVar: Clone, P::G1PreparedVar: Clone, P::G2PreparedVar: Clone")
+)]
 pub struct VerifyingKeyVar<E: Pairing, P: PairingVar<E>> {
     #[doc(hidden)]
     pub alpha_g1: P::G1Var,
@@ -114,7 +114,7 @@ where
 #[derive(Derivative)]
 #[derivative(
     Clone(bound = "P::G1Var: Clone, P::GTVar: Clone, P::G1PreparedVar: Clone, \
-    P::G2PreparedVar: Clone, ")
+    P::G2PreparedVar: Clone")
 )]
 pub struct PreparedVerifyingKeyVar<E: Pairing, P: PairingVar<E>> {
     #[doc(hidden)]
