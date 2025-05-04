@@ -12,6 +12,22 @@ use ark_std::{cfg_into_iter, cfg_iter};
 #[cfg(feature = "parallel")]
 use rayon::prelude::*;
 
+/// Configuration for Groth16 parameter generation
+pub struct ParameterGenConfig<E: Pairing> {
+    /// Alpha parameter (toxic waste)
+    pub alpha: E::ScalarField,
+    /// Beta parameter (toxic waste)
+    pub beta: E::ScalarField,
+    /// Gamma parameter (toxic waste)
+    pub gamma: E::ScalarField,
+    /// Delta parameter (toxic waste)
+    pub delta: E::ScalarField,
+    /// G1 generator
+    pub g1_generator: E::G1,
+    /// G2 generator
+    pub g2_generator: E::G2,
+}
+
 impl<E: Pairing, QAP: R1CSToQAP> Groth16<E, QAP> {
     /// Generates a random common reference string for
     /// a circuit using the provided R1CS-to-QAP reduction.
@@ -31,27 +47,22 @@ impl<E: Pairing, QAP: R1CSToQAP> Groth16<E, QAP> {
         let g1_generator = E::G1::rand(rng);
         let g2_generator = E::G2::rand(rng);
 
-        Self::generate_parameters_with_qap(
-            circuit,
+        let config = ParameterGenConfig {
             alpha,
             beta,
             gamma,
             delta,
             g1_generator,
             g2_generator,
-            rng,
-        )
+        };
+
+        Self::generate_parameters_with_qap(circuit, config, rng)
     }
 
     /// Create parameters for a circuit, given some toxic waste, R1CS to QAP calculator and group generators
     pub fn generate_parameters_with_qap<C>(
         circuit: C,
-        alpha: E::ScalarField,
-        beta: E::ScalarField,
-        gamma: E::ScalarField,
-        delta: E::ScalarField,
-        g1_generator: E::G1,
-        g2_generator: E::G2,
+        config: ParameterGenConfig<E>,
         rng: &mut impl Rng,
     ) -> R1CSResult<ProvingKey<E>>
     where
@@ -63,6 +74,16 @@ impl<E: Pairing, QAP: R1CSToQAP> Groth16<E, QAP> {
         let cs = ConstraintSystem::new_ref();
         cs.set_optimization_goal(OptimizationGoal::Constraints);
         cs.set_mode(SynthesisMode::Setup);
+
+        // Unpack configuration values
+        let ParameterGenConfig {
+            alpha,
+            beta,
+            gamma,
+            delta,
+            g1_generator,
+            g2_generator,
+        } = config;
 
         // Synthesize the circuit.
         let synthesis_time = start_timer!(|| "Constraint synthesis");
