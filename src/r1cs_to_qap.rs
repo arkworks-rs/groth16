@@ -11,6 +11,9 @@ use core::ops::Deref;
 #[cfg(feature = "parallel")]
 use rayon::prelude::*;
 
+/// Type alias for the complex QAP instance result
+pub type QapInstanceResult<F> = Result<(Vec<F>, Vec<F>, Vec<F>, F, usize, usize), SynthesisError>;
+
 #[inline]
 /// Computes the inner product of `terms` with `assignment`.
 ///
@@ -73,7 +76,7 @@ pub trait R1CSToQAP {
     fn instance_map_with_evaluation<F: PrimeField, D: EvaluationDomain<F>>(
         cs: ConstraintSystemRef<F>,
         t: &F,
-    ) -> Result<(Vec<F>, Vec<F>, Vec<F>, F, usize, usize), SynthesisError>;
+    ) -> QapInstanceResult<F>;
 
     #[inline]
     /// Computes a QAP witness corresponding to the R1CS witness defined by `cs`.
@@ -128,7 +131,7 @@ impl R1CSToQAP for LibsnarkReduction {
     fn instance_map_with_evaluation<F: PrimeField, D: EvaluationDomain<F>>(
         cs: ConstraintSystemRef<F>,
         t: &F,
-    ) -> R1CSResult<(Vec<F>, Vec<F>, Vec<F>, F, usize, usize)> {
+    ) -> QapInstanceResult<F> {
         let matrices = cs.to_matrices().unwrap();
         let domain_size = cs.num_constraints() + cs.num_instance_variables();
         let domain = D::new(domain_size).ok_or(SynthesisError::PolynomialDegreeTooLarge)?;
@@ -188,8 +191,8 @@ impl R1CSToQAP for LibsnarkReduction {
             .zip(cfg_iter!(&matrices.a))
             .zip(cfg_iter!(&matrices.b))
             .for_each(|(((a, b), at_i), bt_i)| {
-                *a = evaluate_constraint(&at_i, &full_assignment);
-                *b = evaluate_constraint(&bt_i, &full_assignment);
+                *a = evaluate_constraint(at_i, full_assignment);
+                *b = evaluate_constraint(bt_i, full_assignment);
             });
 
         {
@@ -214,7 +217,7 @@ impl R1CSToQAP for LibsnarkReduction {
         cfg_iter_mut!(c[..num_constraints])
             .enumerate()
             .for_each(|(i, c)| {
-                *c = evaluate_constraint(&matrices.c[i], &full_assignment);
+                *c = evaluate_constraint(&matrices.c[i], full_assignment);
             });
 
         domain.ifft_in_place(&mut c);
