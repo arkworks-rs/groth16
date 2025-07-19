@@ -26,6 +26,6 @@ if repo_name == "":
     repo_name = components[-2]
 
 for line in fileinput.input(inplace=True):
-    line = re.sub(r"\- #([0-9]*)", r"- [\\#\1](https://github.com/arkworks-rs/" + repo_name + r"/pull/\1)", line.rstrip())
+    line = re.sub(r"\- #([0-9]+)", r"- [#\1](https://github.com/arkworks-rs/" + repo_name + r"/pull/\1)", line.rstrip())
     # edits the current file
     print(line)
