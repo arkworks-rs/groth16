@@ -1,6 +1,6 @@
 use ark_ff::PrimeField;
 use ark_poly::EvaluationDomain;
-use ark_std::{cfg_iter, cfg_iter_mut, vec};
+use ark_std::{cfg_iter_mut, vec};
 
 use crate::Vec;
 use ark_relations::gr1cs::{
@@ -15,12 +15,15 @@ use rayon::prelude::*;
 /// Computes the inner product of `terms` with `assignment`.
 ///
 /// This implementation is optimized for both parallel and sequential execution:
-/// - In parallel mode, it uses Rayon's parallel iterator for efficient multi-threading
-/// - In sequential mode, it processes elements in chunks for better vectorization
+/// - In parallel mode, it uses Rayon's parallel iterator for efficient
+///   multi-threading
+/// - In sequential mode, it processes elements in chunks for better
+///   vectorization
 ///
 /// # Performance characteristics
 /// - Time complexity: O(n) where n is the number of terms
-/// - Space complexity: O(1) in sequential mode, O(log n) in parallel mode due to work splitting
+/// - Space complexity: O(1) in sequential mode, O(log n) in parallel mode due
+///   to work splitting
 ///
 /// # Arguments
 /// * `terms` - Slice of tuples containing coefficients and their indices
