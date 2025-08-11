@@ -1,7 +1,7 @@
 [package]
 name = "ark-groth16"
 version = "0.5.0"
-authors = ["arkworks contributors"]
+authors = [ "arkworks contributors" ]
 description = "An implementation of the Groth 2016 zkSNARK proof system"
 homepage = "https://arkworks.rs"
 repository = "https://github.com/arkworks-rs/groth16"
@@ -27,10 +27,10 @@ ark-serialize = { git = "https://github.com/arkworks-rs/algebra.git", default-fe
 ark-poly = { git = "https://github.com/arkworks-rs/algebra.git", default-features = false }
 ark-std = { version = "0.5.0", default-features = false }
 
-ark-relations = { git = "https://github.com/arkworks-rs/snark.git", default-features = true }
+ark-relations = { git = "https://github.com/arkworks-rs/snark.git", default-features = false }
 ark-snark = { git = "https://github.com/arkworks-rs/snark.git", default-features = false }
 
-ark-r1cs-std = { git = "https://github.com/arkworks-rs/r1cs-std.git", default-features = true, optional = true }
+ark-r1cs-std = { git = "https://github.com/arkworks-rs/r1cs-std.git", default-features = false, optional = true }
 ark-crypto-primitives = { git = "https://github.com/arkworks-rs/crypto-primitives.git", default-features = false, features = [ "snark", "sponge" ], optional = true }
 tracing = { version = "0.1", default-features = false, features = ["attributes" ], optional = true }
 educe = { version = "0.6.0", default-features = false, features = [ "Clone" ], optional = true }
