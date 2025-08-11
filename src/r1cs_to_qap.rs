@@ -47,14 +47,16 @@ where
 /// Computes instance and witness reductions from R1CS to
 /// Quadratic Arithmetic Programs (QAPs).
 pub trait R1CSToQAP {
-    /// Computes a QAP instance corresponding to the R1CS instance defined by `cs`.
+    /// Computes a QAP instance corresponding to the R1CS instance defined by
+    /// `cs`.
     fn instance_map_with_evaluation<F: PrimeField, D: EvaluationDomain<F>>(
         cs: ConstraintSystemRef<F>,
         t: &F,
     ) -> Result<(Vec<F>, Vec<F>, Vec<F>, F, usize, usize), SynthesisError>;
 
     #[inline]
-    /// Computes a QAP witness corresponding to the R1CS witness defined by `cs`.
+    /// Computes a QAP witness corresponding to the R1CS witness defined by
+    /// `cs`.
     fn witness_map<F: PrimeField, D: EvaluationDomain<F>>(
         prover: ConstraintSystemRef<F>,
     ) -> Result<Vec<F>, SynthesisError> {
@@ -79,7 +81,8 @@ pub trait R1CSToQAP {
         )
     }
 
-    /// Computes a QAP witness corresponding to the R1CS witness defined by `cs`.
+    /// Computes a QAP witness corresponding to the R1CS witness defined by
+    /// `cs`.
     fn witness_map_from_matrices<F: PrimeField, D: EvaluationDomain<F>>(
         matrices: &[Matrix<F>],
         num_inputs: usize,

@@ -6,8 +6,7 @@ use ark_relations::gr1cs::{
     ConstraintSynthesizer, ConstraintSystem, OptimizationGoal, Result as R1CSResult,
     SynthesisError, SynthesisMode,
 };
-use ark_std::rand::Rng;
-use ark_std::{cfg_into_iter, cfg_iter};
+use ark_std::{cfg_into_iter, cfg_iter, rand::Rng};
 
 #[cfg(feature = "parallel")]
 use rayon::prelude::*;
@@ -43,7 +42,8 @@ impl<E: Pairing, QAP: R1CSToQAP> Groth16<E, QAP> {
         )
     }
 
-    /// Create parameters for a circuit, given some toxic waste, R1CS to QAP calculator and group generators
+    /// Create parameters for a circuit, given some toxic waste, R1CS to QAP
+    /// calculator and group generators
     pub fn generate_parameters_with_qap<C>(
         circuit: C,
         alpha: E::ScalarField,
@@ -73,8 +73,8 @@ impl<E: Pairing, QAP: R1CSToQAP> Groth16<E, QAP> {
         cs.finalize();
         end_timer!(lc_time);
 
-        // Following is the mapping of symbols from the Groth16 paper to this implementation
-        // l -> num_instance_variables
+        // Following is the mapping of symbols from the Groth16 paper to this
+        // implementation l -> num_instance_variables
         // m -> qap_num_variables
         // x -> t
         // t(x) - zt

@@ -20,8 +20,8 @@ pub fn prepare_verifying_key<E: Pairing>(vk: &VerifyingKey<E>) -> PreparedVerify
 }
 
 impl<E: Pairing, QAP: R1CSToQAP> Groth16<E, QAP> {
-    /// Prepare proof inputs for use with [`verify_proof_with_prepared_inputs`], wrt the prepared
-    /// verification key `pvk` and instance public inputs.
+    /// Prepare proof inputs for use with [`verify_proof_with_prepared_inputs`],
+    /// wrt the prepared verification key `pvk` and instance public inputs.
     pub fn prepare_inputs(
         pvk: &PreparedVerifyingKey<E>,
         public_inputs: &[E::ScalarField],
@@ -34,8 +34,9 @@ impl<E: Pairing, QAP: R1CSToQAP> Groth16<E, QAP> {
         Ok(g_ic)
     }
 
-    /// Verify a Groth16 proof `proof` against the prepared verification key `pvk` and prepared public
-    /// inputs. This should be preferred over [`verify_proof`] if the instance's public inputs are
+    /// Verify a Groth16 proof `proof` against the prepared verification key
+    /// `pvk` and prepared public inputs. This should be preferred over
+    /// [`verify_proof`] if the instance's public inputs are
     /// known in advance.
     pub fn verify_proof_with_prepared_inputs(
         pvk: &PreparedVerifyingKey<E>,
@@ -60,8 +61,8 @@ impl<E: Pairing, QAP: R1CSToQAP> Groth16<E, QAP> {
         Ok(test.0 == pvk.alpha_g1_beta_g2)
     }
 
-    /// Verify a Groth16 proof `proof` against the prepared verification key `pvk`,
-    /// with respect to the instance `public_inputs`.
+    /// Verify a Groth16 proof `proof` against the prepared verification key
+    /// `pvk`, with respect to the instance `public_inputs`.
     pub fn verify_proof(
         pvk: &PreparedVerifyingKey<E>,
         proof: &Proof<E>,
