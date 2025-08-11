@@ -31,7 +31,7 @@ ark-relations = { git = "https://github.com/arkworks-rs/snark.git", default-feat
 ark-snark = { git = "https://github.com/arkworks-rs/snark.git", default-features = false }
 
 ark-r1cs-std = { git = "https://github.com/arkworks-rs/r1cs-std.git", default-features = false, optional = true }
-ark-crypto-primitives = { git = "https://github.com/arkworks-rs/crypto-primitives.git", default-features = false, features = [ "snark", "sponge" ], optional = true }
+ark-crypto-primitives = { git = "https://github.com/arkworks-rs/crypto-primitives.git", default-features = false, features = [ "snark", "sponge" ] }
 tracing = { version = "0.1", default-features = false, features = ["attributes" ], optional = true }
 educe = { version = "0.6.0", default-features = false, features = [ "Clone" ], optional = true }
 
