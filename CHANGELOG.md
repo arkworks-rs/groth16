@@ -14,6 +14,7 @@
 ### Improvements
 
 - [\#36](https://github.com/arkworks-rs/groth16/pull/36) Documentation updates and minor optimization in setup.
+ [\#91](https://github.com/arkworks-rs/groth16/pull/XX) Improve documentation for public APIs, data structures, and internal methods across core modules.
 
 ### Bug fixes
 
