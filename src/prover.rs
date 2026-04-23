@@ -25,6 +25,28 @@ impl<E: Pairing, QAP: R1CSToQAP> Groth16<E, QAP> {
     /// Create a Groth16 proof using randomness `r` and `s` and
     /// the provided R1CS-to-QAP reduction, using the provided
     /// R1CS constraint matrices.
+    ///
+    /// This is the lowest-level proving interface: it takes pre-extracted
+    /// matrices and the full variable assignment directly, bypassing
+    /// constraint synthesis. Use this when you already have the R1CS matrices
+    /// and assignments available (e.g., from a previous synthesis step).
+    ///
+    /// For most use cases, prefer
+    /// [`create_random_proof_with_reduction`](Self::create_random_proof_with_reduction)
+    /// which handles constraint synthesis and random blinding factor
+    /// generation automatically.
+    ///
+    /// # Arguments
+    ///
+    /// * `pk` - The proving key from the trusted setup.
+    /// * `r`, `s` - Blinding factors for zero-knowledge. Set both to zero for
+    ///   a non-zero-knowledge proof.
+    /// * `matrices` - The R1CS constraint matrices `[A, B, C]`.
+    /// * `num_inputs` - Number of public input variables (including the
+    ///   constant `1`).
+    /// * `num_constraints` - Number of R1CS constraints.
+    /// * `full_assignment` - The complete variable assignment: instance
+    ///   (public) variables followed by witness (private) variables.
     #[inline]
     pub fn create_proof_with_reduction_and_matrices(
         pk: &ProvingKey<E>,
@@ -53,6 +75,27 @@ impl<E: Pairing, QAP: R1CSToQAP> Groth16<E, QAP> {
         Ok(proof)
     }
 
+    /// Assembles a Groth16 proof from the QAP witness polynomial `h` and
+    /// the split variable assignments.
+    ///
+    /// This is the core proof construction routine. It computes the three
+    /// proof elements `(A, B, C)` using multi-scalar multiplications
+    /// against the proving key queries:
+    ///
+    /// - `A = alpha + sum(a_i * u_i) + r * delta`
+    /// - `B = beta  + sum(a_i * v_i) + s * delta`
+    /// - `C = sum(a_i * w_i)/delta + h(t)*z(t)/delta + s*A + r*B - r*s*delta`
+    ///
+    /// where `a_i` is the full assignment and `u_i, v_i, w_i` are the QAP
+    /// polynomials encoded in the proving key.
+    ///
+    /// # Arguments
+    ///
+    /// * `pk` - The proving key.
+    /// * `r`, `s` - Blinding factors for zero-knowledge.
+    /// * `h` - Coefficients of the quotient polynomial `h(x)`.
+    /// * `input_assignment` - Public input values (excluding the leading `1`).
+    /// * `aux_assignment` - Witness (private) variable values.
     #[inline]
     fn create_proof_with_assignment(
         pk: &ProvingKey<E>,
@@ -136,7 +179,17 @@ impl<E: Pairing, QAP: R1CSToQAP> Groth16<E, QAP> {
 
     /// Create a Groth16 proof that is zero-knowledge using the provided
     /// R1CS-to-QAP reduction.
-    /// This method samples randomness for zero knowledges via `rng`.
+    ///
+    /// This is the recommended high-level proving interface. It synthesizes
+    /// the circuit, computes the QAP witness, and constructs the proof using
+    /// freshly sampled blinding factors `r` and `s` for zero-knowledge.
+    ///
+    /// # Arguments
+    ///
+    /// * `circuit` - The circuit (constraint synthesizer) encoding the
+    ///   statement and witness.
+    /// * `pk` - The proving key from the trusted setup.
+    /// * `rng` - A random number generator for sampling blinding factors.
     #[inline]
     pub fn create_random_proof_with_reduction<C>(
         circuit: C,
@@ -154,6 +207,14 @@ impl<E: Pairing, QAP: R1CSToQAP> Groth16<E, QAP> {
 
     /// Create a Groth16 proof that is *not* zero-knowledge with the provided
     /// R1CS-to-QAP reduction.
+    ///
+    /// **Warning:** The resulting proof reveals information about the witness.
+    /// Use [`create_random_proof_with_reduction`](Self::create_random_proof_with_reduction)
+    /// for zero-knowledge proofs in production.
+    ///
+    /// This sets the blinding factors `r` and `s` to zero, which removes the
+    /// zero-knowledge property but may be useful for testing or in contexts
+    /// where privacy is not required.
     #[inline]
     pub fn create_proof_with_reduction_no_zk<C>(
         circuit: C,
@@ -170,8 +231,21 @@ impl<E: Pairing, QAP: R1CSToQAP> Groth16<E, QAP> {
         )
     }
 
-    /// Create a Groth16 proof using randomness `r` and `s` and the provided
-    /// R1CS-to-QAP reduction.
+    /// Create a Groth16 proof using the specified blinding factors `r` and `s`
+    /// and the provided R1CS-to-QAP reduction.
+    ///
+    /// This method performs the full proving pipeline:
+    /// 1. Synthesizes the circuit into an R1CS constraint system.
+    /// 2. Converts the R1CS witness to a QAP witness via the `QAP` reduction.
+    /// 3. Assembles the proof using
+    ///    [`create_proof_with_assignment`](Self::create_proof_with_assignment).
+    ///
+    /// # Arguments
+    ///
+    /// * `circuit` - The circuit to prove.
+    /// * `pk` - The proving key.
+    /// * `r`, `s` - Blinding factors. Use non-zero random values for
+    ///   zero-knowledge.
     #[inline]
     pub fn create_proof_with_reduction<C>(
         circuit: C,
@@ -224,10 +298,28 @@ impl<E: Pairing, QAP: R1CSToQAP> Groth16<E, QAP> {
         Ok(proof)
     }
 
-    /// Given a Groth16 proof, returns a fresh proof of the same statement. For
-    /// a proof π of a statement S, the output of the non-deterministic
-    /// procedure `rerandomize_proof(π)` is statistically indistinguishable
-    /// from a fresh honest proof of S. For more info, see theorem 3 of [\[BKSV20\]](https://eprint.iacr.org/2020/811)
+    /// Rerandomize an existing Groth16 proof to produce a fresh, unlinkable
+    /// proof of the same statement.
+    ///
+    /// Given a valid proof `π` of a statement `S`, the output is
+    /// statistically indistinguishable from a freshly generated honest proof
+    /// of `S`. This is useful for privacy — it prevents linking two
+    /// verifications as being for the "same" proof.
+    ///
+    /// The rerandomization follows the construction in Theorem 3 of
+    /// [\[BKSV20\]](https://eprint.iacr.org/2020/811):
+    ///
+    /// - `A' = (1/r₁) * A`
+    /// - `B' = r₁ * B + r₁ * r₂ * (delta * H)`
+    /// - `C' = C + r₂ * A`
+    ///
+    /// where `r₁` and `r₂` are freshly sampled non-zero random scalars.
+    ///
+    /// # Arguments
+    ///
+    /// * `vk` - The verification key (needed for the `delta_g2` element).
+    /// * `proof` - The proof to rerandomize.
+    /// * `rng` - A random number generator for sampling `r₁` and `r₂`.
     pub fn rerandomize_proof(
         vk: &VerifyingKey<E>,
         proof: &Proof<E>,
@@ -258,6 +350,14 @@ impl<E: Pairing, QAP: R1CSToQAP> Groth16<E, QAP> {
         }
     }
 
+    /// Computes a linear combination of group elements from the proving key.
+    ///
+    /// Calculates: `initial + vk_param + query[0] + MSM(query[1..],
+    /// assignment)`
+    ///
+    /// This helper is used internally to compute the `A` and `B` components
+    /// of the proof. The `query[0]` term corresponds to the constant `1`
+    /// variable in the R1CS assignment.
     fn calculate_coeff<G: AffineRepr>(
         initial: G::Group,
         query: &[G],
