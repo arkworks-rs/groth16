@@ -25,7 +25,7 @@ ark-ff = { git = "https://github.com/arkworks-rs/algebra.git", default-features 
 ark-ec = { git = "https://github.com/arkworks-rs/algebra.git", default-features = false }
 ark-serialize = { git = "https://github.com/arkworks-rs/algebra.git", default-features = false, features = [ "derive" ] }
 ark-poly = { git = "https://github.com/arkworks-rs/algebra.git", default-features = false }
-ark-std = { version = "0.5.0", default-features = false }
+ark-std = { version = "0.6.0", default-features = false }
 
 ark-relations = { git = "https://github.com/arkworks-rs/snark.git", default-features = false }
 ark-snark = { git = "https://github.com/arkworks-rs/snark.git", default-features = false }
