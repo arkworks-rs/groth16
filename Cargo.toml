@@ -36,6 +36,7 @@ tracing = { version = "0.1", default-features = false, features = ["attributes" 
 educe = { version = "0.6.0", default-features = false, features = [ "Clone" ], optional = true }
 
 rayon = { version = "1", optional = true }
+zeroize = { version = "1", default-features = false, features = ["alloc"] }
 
 [dev-dependencies]
 ark-bls12-381 = { git = "https://github.com/arkworks-rs/algebra.git", default-features = false, features = [ "curve" ] }

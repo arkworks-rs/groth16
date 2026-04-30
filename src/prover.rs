@@ -15,6 +15,7 @@ use ark_std::{
     rand::Rng,
     vec::Vec,
 };
+use zeroize::Zeroize;
 
 #[cfg(feature = "parallel")]
 use rayon::prelude::*;
@@ -34,10 +35,14 @@ impl<E: Pairing, QAP: R1CSToQAP> Groth16<E, QAP> {
         num_inputs: usize,
         num_constraints: usize,
         full_assignment: &[E::ScalarField],
-    ) -> R1CSResult<Proof<E>> {
+    ) -> R1CSResult<Proof<E>>
+    where
+        E::ScalarField: Zeroize,
+        <E::ScalarField as PrimeField>::BigInt: Zeroize,
+    {
         let prover_time = start_timer!(|| "Groth16::Prover");
         let witness_map_time = start_timer!(|| "R1CS to QAP witness map");
-        let h = QAP::witness_map_from_matrices::<E::ScalarField, D<E::ScalarField>>(
+        let mut h = QAP::witness_map_from_matrices::<E::ScalarField, D<E::ScalarField>>(
             matrices,
             num_inputs,
             num_constraints,
@@ -49,6 +54,7 @@ impl<E: Pairing, QAP: R1CSToQAP> Groth16<E, QAP> {
         let proof =
             Self::create_proof_with_assignment(pk, r, s, &h, input_assignment, aux_assignment)?;
         end_timer!(prover_time);
+        h.zeroize();
 
         Ok(proof)
     }
@@ -61,16 +67,20 @@ impl<E: Pairing, QAP: R1CSToQAP> Groth16<E, QAP> {
         h: &[E::ScalarField],
         input_assignment: &[E::ScalarField],
         aux_assignment: &[E::ScalarField],
-    ) -> R1CSResult<Proof<E>> {
+    ) -> R1CSResult<Proof<E>>
+    where
+        E::ScalarField: Zeroize,
+        <E::ScalarField as PrimeField>::BigInt: Zeroize,
+    {
         let c_acc_time = start_timer!(|| "Compute C");
-        let h_assignment = cfg_into_iter!(h)
+        let mut h_assignment = cfg_into_iter!(h)
             .map(|s| s.into_bigint())
             .collect::<Vec<_>>();
         let h_acc = E::G1::msm_bigint(&pk.h_query, &h_assignment);
-        drop(h_assignment);
+        h_assignment.zeroize();
 
         // Compute C
-        let aux_assignment = cfg_iter!(aux_assignment)
+        let mut aux_assignment = cfg_iter!(aux_assignment)
             .map(|s| s.into_bigint())
             .collect::<Vec<_>>();
 
@@ -80,13 +90,14 @@ impl<E: Pairing, QAP: R1CSToQAP> Groth16<E, QAP> {
 
         end_timer!(c_acc_time);
 
-        let input_assignment = input_assignment
+        let mut input_assignment = input_assignment
             .iter()
             .map(|s| s.into_bigint())
             .collect::<Vec<_>>();
 
-        let assignment = [&input_assignment[..], &aux_assignment[..]].concat();
-        drop(aux_assignment);
+        let mut assignment = [&input_assignment[..], &aux_assignment[..]].concat();
+        aux_assignment.zeroize();
+        input_assignment.zeroize();
 
         // Compute A
         let a_acc_time = start_timer!(|| "Compute A");
@@ -115,7 +126,7 @@ impl<E: Pairing, QAP: R1CSToQAP> Groth16<E, QAP> {
         let s_g2 = pk.vk.delta_g2.mul(s);
         let g2_b = Self::calculate_coeff(s_g2, &pk.b_g2_query, pk.vk.beta_g2, &assignment);
         let r_g1_b = g1_b * &r;
-        drop(assignment);
+        assignment.zeroize();
 
         end_timer!(b_g2_acc_time);
 
@@ -145,6 +156,8 @@ impl<E: Pairing, QAP: R1CSToQAP> Groth16<E, QAP> {
     ) -> R1CSResult<Proof<E>>
     where
         C: ConstraintSynthesizer<E::ScalarField>,
+        E::ScalarField: Zeroize,
+        <E::ScalarField as PrimeField>::BigInt: Zeroize,
     {
         let r = E::ScalarField::rand(rng);
         let s = E::ScalarField::rand(rng);
@@ -161,6 +174,8 @@ impl<E: Pairing, QAP: R1CSToQAP> Groth16<E, QAP> {
     ) -> R1CSResult<Proof<E>>
     where
         C: ConstraintSynthesizer<E::ScalarField>,
+        E::ScalarField: Zeroize,
+        <E::ScalarField as PrimeField>::BigInt: Zeroize,
     {
         Self::create_proof_with_reduction(
             circuit,
@@ -183,6 +198,8 @@ impl<E: Pairing, QAP: R1CSToQAP> Groth16<E, QAP> {
         E: Pairing,
         C: ConstraintSynthesizer<E::ScalarField>,
         QAP: R1CSToQAP,
+        E::ScalarField: Zeroize,
+        <E::ScalarField as PrimeField>::BigInt: Zeroize,
     {
         let prover_time = start_timer!(|| "Groth16::Prover");
         let cs = ConstraintSystem::new_ref();
@@ -206,7 +223,7 @@ impl<E: Pairing, QAP: R1CSToQAP> Groth16<E, QAP> {
         debug_assert!(cs.is_satisfied().unwrap());
 
         let witness_map_time = start_timer!(|| "R1CS to QAP witness map");
-        let h = QAP::witness_map::<E::ScalarField, D<E::ScalarField>>(cs.clone())?;
+        let mut h = QAP::witness_map::<E::ScalarField, D<E::ScalarField>>(cs.clone())?;
         end_timer!(witness_map_time);
 
         let prover = cs.borrow().unwrap();
@@ -218,6 +235,7 @@ impl<E: Pairing, QAP: R1CSToQAP> Groth16<E, QAP> {
             &prover.instance_assignment().unwrap()[1..],
             &prover.witness_assignment().unwrap(),
         )?;
+        h.zeroize();
 
         end_timer!(prover_time);
 
