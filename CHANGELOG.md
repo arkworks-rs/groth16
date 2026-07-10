@@ -4,6 +4,7 @@
 
 ### Breaking changes
 
+- [\#94](https://github.com/arkworks-rs/groth16/pull/94) Bump the minimum supported Rust version to 1.89.
 - [\#44](https://github.com/arkworks-rs/groth16/pull/44) Move free functions in `generator.rs`, `prover.rs`, `verifier.rs` to methods on `Groth16` struct.
 
 ### Features
