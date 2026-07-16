@@ -7,7 +7,7 @@
     <a href="https://deps.rs/repo/github/arkworks-rs/groth16"><img src="https://deps.rs/repo/github/arkworks-rs/groth16/status.svg"></a>
 </p>
 
-The arkworks ecosystem consist of Rust libraries for designing and working with __zero knowledge succinct non-interactive arguments (zkSNARKs)__. This repository contains an efficient implementation of the zkSNARK of [[Groth16]](https://eprint.iacr.org/2016/260).
+The arkworks ecosystem consists of Rust libraries for designing and working with __zero knowledge succinct non-interactive arguments (zkSNARKs)__. This repository contains an efficient implementation of the zkSNARK of [[Groth16]](https://eprint.iacr.org/2016/260).
 
 This library is released under the MIT License and the Apache v2 License (see [License](#license)).
 
