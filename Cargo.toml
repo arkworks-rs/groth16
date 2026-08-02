@@ -105,6 +105,7 @@ debug-assertions = true
 debug = true
 
 [patch.crates-io]
+ark-crypto-primitives = { git = "https://github.com/arkworks-rs/crypto-primitives.git" }
 ark-relations = { git = "https://github.com/arkworks-rs/snark.git" }
 ark-ff = { git = "https://github.com/arkworks-rs/algebra.git" }
 ark-ec = { git = "https://github.com/arkworks-rs/algebra.git" }
