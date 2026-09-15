@@ -34,7 +34,7 @@ ark-snark = { version = "0.6", default-features = false }
 ark-r1cs-std = { version = "0.6", default-features = false, optional = true }
 ark-crypto-primitives = { version = "0.6", default-features = false, features = [ "snark", "sponge" ] }
 tracing = { version = "0.1", default-features = false, features = ["attributes" ], optional = true }
-educe = { version = "0.7.4", default-features = false, features = [ "Clone" ], optional = true }
+educe = { version = "0.8.0", default-features = false, features = [ "Clone" ], optional = true }
 
 rayon = { version = "1", optional = true }
 
