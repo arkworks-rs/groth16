@@ -1,6 +1,6 @@
 use ark_ff::PrimeField;
 use ark_poly::EvaluationDomain;
-use ark_std::{cfg_iter_mut, vec};
+use ark_std::{cfg_iter_mut, cfg_join, vec};
 
 use crate::Vec;
 use ark_relations::gr1cs::{
@@ -184,60 +184,35 @@ impl R1CSToQAP for LibsnarkReduction {
         let domain =
             D::new(num_constraints + num_inputs).ok_or(SynthesisError::PolynomialDegreeTooLarge)?;
         let domain_size = domain.size();
-        let zero = F::zero();
-
-        let mut a = vec![zero; domain_size];
-        let mut b = vec![zero; domain_size];
-
-        cfg_iter_mut!(a[..num_constraints])
-            .zip(&mut b[..num_constraints])
-            .zip(&matrices[0])
-            .zip(&matrices[1])
-            .for_each(|(((a, b), at_i), bt_i)| {
-                *a = evaluate_constraint(&at_i, &full_assignment);
-                *b = evaluate_constraint(&bt_i, &full_assignment);
-            });
-
-        {
-            let start = num_constraints;
-            let end = start + num_inputs;
-            a[start..end].clone_from_slice(&full_assignment[..num_inputs]);
-        }
-
-        domain.ifft_in_place(&mut a);
-        domain.ifft_in_place(&mut b);
-
         let coset_domain = domain.get_coset(F::GENERATOR).unwrap();
 
-        coset_domain.fft_in_place(&mut a);
-        coset_domain.fft_in_place(&mut b);
-
-        let mut ab = domain.mul_polynomials_in_evaluation_domain(&a, &b);
-        drop(a);
-        drop(b);
-
-        let mut c = vec![zero; domain_size];
-        cfg_iter_mut!(c[..num_constraints])
-            .enumerate()
-            .for_each(|(i, c)| {
-                *c = evaluate_constraint(&matrices[2][i], &full_assignment);
-            });
-
-        domain.ifft_in_place(&mut c);
-        coset_domain.fft_in_place(&mut c);
+        // Runs the A, B, and C transforms concurrently.
+        let public_inputs = &full_assignment[..num_inputs];
+        let evaluate = |matrix: &Matrix<F>, extra: &[F]| {
+            coset_evaluations::<F, D>(domain_size, num_constraints, matrix, extra, full_assignment)
+        };
+        let evaluate_a = || evaluate(&matrices[0], public_inputs);
+        let evaluate_b = || evaluate(&matrices[1], &[]);
+        let evaluate_c = || evaluate(&matrices[2], &[]);
+        let (mut a, (b, c)) = cfg_join!(evaluate_a, || cfg_join!(evaluate_b, evaluate_c));
 
         let vanishing_polynomial_over_coset = domain
             .evaluate_vanishing_polynomial(F::GENERATOR)
             .inverse()
             .unwrap();
-        cfg_iter_mut!(ab).zip(c).for_each(|(ab_i, c_i)| {
-            *ab_i -= &c_i;
-            *ab_i *= &vanishing_polynomial_over_coset;
-        });
 
-        coset_domain.ifft_in_place(&mut ab);
+        cfg_iter_mut!(a)
+            .zip(b)
+            .zip(c)
+            .for_each(|((a_i, b_i), c_i)| {
+                *a_i *= &b_i;
+                *a_i -= &c_i;
+                *a_i *= &vanishing_polynomial_over_coset;
+            });
 
-        Ok(ab)
+        coset_domain.ifft_in_place(&mut a);
+
+        Ok(a)
     }
 
     fn h_query_scalars<F: PrimeField, D: EvaluationDomain<F>>(
@@ -251,4 +226,33 @@ impl R1CSToQAP for LibsnarkReduction {
             .collect::<Vec<_>>();
         Ok(scalars)
     }
+}
+
+fn coset_evaluations<F: PrimeField, D: EvaluationDomain<F>>(
+    domain_size: usize,
+    num_constraints: usize,
+    matrix: &Matrix<F>,
+    extra: &[F],
+    full_assignment: &[F],
+) -> Vec<F> {
+    // This same domain is being unwrapped in `witness_map_from_matrices`, so
+    // is guaranteed to be valid by now. Can't send EvaluationDomain across
+    // threads because it isn't Send/Sync.
+    let domain = D::new(domain_size).unwrap();
+    debug_assert_eq!(domain.size(), domain_size);
+
+    let zero = F::zero();
+
+    let mut evals = vec![zero; domain_size];
+    cfg_iter_mut!(evals[..num_constraints])
+        .zip(matrix)
+        .for_each(|(e, row)| *e = evaluate_constraint(row, full_assignment));
+    evals[num_constraints..num_constraints + extra.len()].clone_from_slice(extra);
+
+    domain.ifft_in_place(&mut evals);
+    domain
+        .get_coset(F::GENERATOR)
+        .unwrap()
+        .fft_in_place(&mut evals);
+    evals
 }
