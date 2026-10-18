@@ -2,6 +2,8 @@
 
 ## Pending
 
+- [#100]([xx](https://github.com/arkworks-rs/groth16/pull/100)) Parallelize the groth16 proving routine in `create_proof_with_assignment` and `witness_map_from_matrices`.
+
 ### Breaking changes
 
 - [\#94](https://github.com/arkworks-rs/groth16/pull/94) Bump the minimum supported Rust version to 1.89.

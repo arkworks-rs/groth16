@@ -10,7 +10,7 @@ use ark_relations::{
     utils::matrix::Matrix,
 };
 use ark_std::{
-    cfg_into_iter, cfg_iter,
+    cfg_into_iter, cfg_iter, cfg_join,
     ops::{AddAssign, Mul},
     rand::Rng,
     vec::Vec,
@@ -62,62 +62,61 @@ impl<E: Pairing, QAP: R1CSToQAP> Groth16<E, QAP> {
         input_assignment: &[E::ScalarField],
         aux_assignment: &[E::ScalarField],
     ) -> R1CSResult<Proof<E>> {
-        let c_acc_time = start_timer!(|| "Compute C");
         let h_assignment = cfg_into_iter!(h)
             .map(|s| s.into_bigint())
             .collect::<Vec<_>>();
-        let h_acc = E::G1::msm_bigint(&pk.h_query, &h_assignment);
-        drop(h_assignment);
-
-        // Compute C
-        let aux_assignment = cfg_iter!(aux_assignment)
+        let assignment = cfg_iter!(input_assignment)
+            .chain(cfg_iter!(aux_assignment))
             .map(|s| s.into_bigint())
             .collect::<Vec<_>>();
+        let aux_assignment = &assignment[input_assignment.len()..];
 
-        let l_aux_acc = E::G1::msm_bigint(&pk.l_query, &aux_assignment);
+        // Compute C, A, B_G1, and B_G2 concurrently.
+        let compute_c = || {
+            let c_acc_time = start_timer!(|| "Compute C");
+            let h_acc = E::G1::msm_bigint(&pk.h_query, &h_assignment);
+            let l_aux_acc = E::G1::msm_bigint(&pk.l_query, aux_assignment);
+            end_timer!(c_acc_time);
+            (h_acc, l_aux_acc)
+        };
 
-        let r_s_delta_g1 = pk.delta_g1 * (r * s);
+        let compute_a = || {
+            let a_acc_time = start_timer!(|| "Compute A");
+            let r_g1 = pk.delta_g1.mul(r);
+            let g_a = Self::calculate_coeff(r_g1, &pk.a_query, pk.vk.alpha_g1, &assignment);
+            end_timer!(a_acc_time);
+            g_a
+        };
 
-        end_timer!(c_acc_time);
-
-        let input_assignment = input_assignment
-            .iter()
-            .map(|s| s.into_bigint())
-            .collect::<Vec<_>>();
-
-        let assignment = [&input_assignment[..], &aux_assignment[..]].concat();
-        drop(aux_assignment);
-
-        // Compute A
-        let a_acc_time = start_timer!(|| "Compute A");
-        let r_g1 = pk.delta_g1.mul(r);
-
-        let g_a = Self::calculate_coeff(r_g1, &pk.a_query, pk.vk.alpha_g1, &assignment);
-
-        let s_g_a = g_a * &s;
-        end_timer!(a_acc_time);
-
-        // Compute B in G1 if needed
-        let g1_b = if !r.is_zero() {
+        let compute_b_g1 = || {
+            if r.is_zero() {
+                return E::G1::zero();
+            }
             let b_g1_acc_time = start_timer!(|| "Compute B in G1");
             let s_g1 = pk.delta_g1.mul(s);
             let g1_b = Self::calculate_coeff(s_g1, &pk.b_g1_query, pk.beta_g1, &assignment);
-
             end_timer!(b_g1_acc_time);
-
             g1_b
-        } else {
-            E::G1::zero()
         };
 
-        // Compute B in G2
-        let b_g2_acc_time = start_timer!(|| "Compute B in G2");
-        let s_g2 = pk.vk.delta_g2.mul(s);
-        let g2_b = Self::calculate_coeff(s_g2, &pk.b_g2_query, pk.vk.beta_g2, &assignment);
-        let r_g1_b = g1_b * &r;
+        let compute_b_g2 = || {
+            let b_g2_acc_time = start_timer!(|| "Compute B in G2");
+            let s_g2 = pk.vk.delta_g2.mul(s);
+            let g2_b = Self::calculate_coeff(s_g2, &pk.b_g2_query, pk.vk.beta_g2, &assignment);
+            end_timer!(b_g2_acc_time);
+            g2_b
+        };
+
+        let (((h_acc, l_aux_acc), g_a), (g1_b, g2_b)) = cfg_join!(
+            || cfg_join!(compute_c, compute_a),
+            || cfg_join!(compute_b_g1, compute_b_g2)
+        );
+        drop(h_assignment);
         drop(assignment);
 
-        end_timer!(b_g2_acc_time);
+        let r_s_delta_g1 = pk.delta_g1 * (r * s);
+        let s_g_a = g_a * &s;
+        let r_g1_b = g1_b * &r;
 
         let c_time = start_timer!(|| "Finish C");
         let mut g_c = s_g_a;
