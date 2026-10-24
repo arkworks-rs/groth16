@@ -18,6 +18,7 @@ include = ["Cargo.toml", "src", "README.md", "LICENSE-APACHE", "LICENSE-MIT"]
 license = "MIT/Apache-2.0"
 edition = "2021"
 rust-version = "1.89"
+autobenches = false
 
 ################################# Dependencies ################################
 
@@ -45,6 +46,7 @@ ark-bn254 = { version = "0.6.0", default-features = false, features = [ "curve" 
 ark-bw6-761 = { version = "0.6.0", default-features = false }
 ark-mnt4-298 = { version = "0.6.0", default-features = false, features = [ "curve", "r1cs" ] }
 ark-r1cs-std = { version = "0.6.0", default-features = true }
+criterion = { version = "0.8", features = ["html_reports"] }
 
 
 [features]
@@ -80,6 +82,12 @@ path = "benches/bench.rs"
 harness = false
 required-features = ["std"]
 
+[[bench]]
+name = "groth16-criterion"
+path = "benches/bench_criterion.rs"
+harness = false
+required-features = ["std"]
+
 [profile.release]
 opt-level = 3
 lto = "thin"
@@ -106,7 +114,6 @@ debug = true
 
 [patch.crates-io]
 ark-crypto-primitives = { git = "https://github.com/arkworks-rs/crypto-primitives.git" }
-ark-relations = { git = "https://github.com/arkworks-rs/snark.git" }
 ark-ff = { git = "https://github.com/arkworks-rs/algebra.git" }
 ark-ec = { git = "https://github.com/arkworks-rs/algebra.git" }
 ark-poly = { git = "https://github.com/arkworks-rs/algebra.git" }
@@ -116,4 +123,3 @@ ark-bls12-377 = { git = "https://github.com/arkworks-rs/algebra.git" }
 ark-bn254 = { git = "https://github.com/arkworks-rs/algebra.git" }
 ark-bw6-761 = { git = "https://github.com/arkworks-rs/algebra.git" }
 ark-mnt4-298 = { git = "https://github.com/arkworks-rs/algebra.git" }
-ark-r1cs-std = { git = "https://github.com/arkworks-rs/r1cs-std.git" }
