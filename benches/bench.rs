@@ -3,65 +3,20 @@
 // parallel" -- --nocapture where N is the number of threads you want to use (N
 // = 1 for single-thread).
 
+mod dummycircuit;
+
 use ark_bls12_381::{Bls12_381, Fr as BlsFr};
 use ark_crypto_primitives::snark::SNARK;
-use ark_ff::{PrimeField, UniformRand};
+use ark_ff::UniformRand;
 use ark_groth16::{r1cs_to_qap::evaluate_constraint, Groth16};
 use ark_mnt4_298::{Fr as MNT4Fr, MNT4_298};
-use ark_relations::{
-    gr1cs::{ConstraintSynthesizer, ConstraintSystemRef, SynthesisError},
-    lc,
-};
 use ark_std::rand::{Rng, SeedableRng};
+use dummycircuit::DummyCircuit;
 
 const NUM_PROVE_REPETITIONS: usize = 1;
 const NUM_VERIFY_REPETITIONS: usize = 50;
 const NUM_CONSTRAINTS: usize = (1 << 20) - 100;
 const NUM_VARIABLES: usize = (1 << 20) - 100;
-
-#[derive(Copy)]
-struct DummyCircuit<F: PrimeField> {
-    pub a: Option<F>,
-    pub b: Option<F>,
-    pub num_variables: usize,
-    pub num_constraints: usize,
-}
-
-impl<F: PrimeField> Clone for DummyCircuit<F> {
-    fn clone(&self) -> Self {
-        DummyCircuit {
-            a: self.a.clone(),
-            b: self.b.clone(),
-            num_variables: self.num_variables.clone(),
-            num_constraints: self.num_constraints.clone(),
-        }
-    }
-}
-
-impl<F: PrimeField> ConstraintSynthesizer<F> for DummyCircuit<F> {
-    fn generate_constraints(self, cs: ConstraintSystemRef<F>) -> Result<(), SynthesisError> {
-        let a = cs.new_witness_variable(|| self.a.ok_or(SynthesisError::AssignmentMissing))?;
-        let b = cs.new_witness_variable(|| self.b.ok_or(SynthesisError::AssignmentMissing))?;
-        let c = cs.new_input_variable(|| {
-            let a = self.a.ok_or(SynthesisError::AssignmentMissing)?;
-            let b = self.b.ok_or(SynthesisError::AssignmentMissing)?;
-
-            Ok(a * b)
-        })?;
-
-        for _ in 0..(self.num_variables - 3) {
-            let _ = cs.new_witness_variable(|| self.a.ok_or(SynthesisError::AssignmentMissing))?;
-        }
-
-        for _ in 0..self.num_constraints - 1 {
-            cs.enforce_r1cs_constraint(|| lc!() + a, || lc!() + b, || lc!() + c)?;
-        }
-
-        cs.enforce_r1cs_constraint(|| lc!(), || lc!(), || lc!())?;
-
-        Ok(())
-    }
-}
 
 macro_rules! groth16_prove_bench {
     ($bench_name:ident, $bench_field:ty, $bench_pairing_engine:ty) => {
